@@ -1,0 +1,91 @@
+services:
+  gateway:
+    image: caddy:2.11.4-alpine
+    ports: ["8080:80"]
+    volumes:
+      - ./infra/gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_started }
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    expose: ["3000"]
+
+  api:
+    build:
+      context: apps/api
+      dockerfile: Dockerfile
+    environment: &api-environment
+      JEPRET_ENVIRONMENT: development
+      JEPRET_DATABASE_URL: postgresql+asyncpg://jepret:jepret@db:5432/jepret
+      JEPRET_PUBLIC_ORIGIN: http://localhost:8080
+      JEPRET_MINIO_ENDPOINT: http://minio:9000
+      JEPRET_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      JEPRET_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    expose: ["8000"]
+    depends_on:
+      db: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    build:
+      context: apps/api
+      dockerfile: Dockerfile
+    profiles: ["tools"]
+    environment: *api-environment
+    command: ["uv", "run", "--no-dev", "alembic", "upgrade", "head"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  db:
+    image: postgres:18.4-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jepret}
+      POSTGRES_USER: ${POSTGRES_USER:-jepret}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jepret}
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes: ["minio_data:/data"]
+    expose: ["9000", "9001"]
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on: [minio]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        until mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do sleep 2; done;
+        mc mb --ignore-existing local/jepret-public;
+        mc mb --ignore-existing local/jepret-private
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+
+  redis:
+    image: redis:8.8.0-alpine
+    profiles: ["optional"]
+    command: ["redis-server", "--save", ""]
+    expose: ["6379"]
+
+volumes:
+  postgres_data:
+  minio_data:

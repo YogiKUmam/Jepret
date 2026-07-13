@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, WebSocket
 from fastapi.responses import JSONResponse
 
 from app.core.errors import error_response
@@ -19,3 +19,14 @@ async def ready(
     if not is_ready:
         return error_response(503, "DEPENDENCY_UNAVAILABLE", "Layanan belum siap.")
     return {"data": {"status": "ready"}}
+
+
+@router.websocket("/ws/health")
+async def websocket_health(websocket: WebSocket) -> None:
+    """Development probe validating gateway WebSocket upgrade forwarding only.
+
+    Authenticated business WebSockets are added during the chat phase.
+    """
+    await websocket.accept()
+    await websocket.send_json({"status": "ok"})
+    await websocket.close()

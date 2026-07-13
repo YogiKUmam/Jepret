@@ -1,0 +1,31 @@
+:80 {
+  encode zstd gzip
+
+  handle /health {
+    reverse_proxy api:8000
+  }
+
+  handle /ready {
+    reverse_proxy api:8000
+  }
+
+  handle /api/v1/* {
+    reverse_proxy api:8000
+  }
+
+  handle /api/docs* {
+    reverse_proxy api:8000
+  }
+
+  handle /api/openapi.json {
+    reverse_proxy api:8000
+  }
+
+  handle /ws/* {
+    reverse_proxy api:8000
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
+}
