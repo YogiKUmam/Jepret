@@ -1,0 +1,6 @@
+packages/contracts/openapi.json
+packages/contracts/src/schema.d.ts
+apps/api/
+package-lock.json
+.next/
+node_modules/
