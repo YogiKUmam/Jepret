@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-const uv = process.platform === "win32" ? "uv.exe" : "uv";
+const isWindows = process.platform === "win32";
+const npm = "npm";
+const uv = "uv";
 
 const groups = {
   format: [
@@ -40,7 +41,17 @@ const order =
 for (const group of order) {
   if (!groups[group]) throw new Error(`Unknown quality group: ${group}`);
   for (const [command, args] of groups[group]) {
-    const result = spawnSync(command, args, { stdio: "inherit", shell: false });
-    if (result.status !== 0) process.exit(result.status ?? 1);
+    console.log(`\n[verify:${group}] ${command} ${args.join(" ")}`);
+    // shell:true is required on Windows to launch npm.cmd (Node blocks
+    // .cmd files with shell:false since CVE-2024-27980).
+    const result = spawnSync(command, args, { stdio: "inherit", shell: isWindows });
+    if (result.error) {
+      console.error(`[verify:${group}] failed to start: ${result.error.message}`);
+      process.exit(1);
+    }
+    if (result.status !== 0) {
+      console.error(`[verify:${group}] exited with status ${result.status}`);
+      process.exit(result.status ?? 1);
+    }
   }
 }
