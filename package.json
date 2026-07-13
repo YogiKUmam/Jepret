@@ -1,0 +1,19 @@
+{
+  "name": "jepret",
+  "private": true,
+  "version": "0.1.0",
+  "engines": { "node": ">=24 <25" },
+  "workspaces": ["apps/web", "packages/contracts"],
+  "devDependencies": { "prettier": "3.9.5" },
+  "scripts": {
+    "format": "node scripts/verify.mjs format",
+    "format:check": "node scripts/verify.mjs formatcheck",
+    "lint": "node scripts/verify.mjs lint",
+    "typecheck": "node scripts/verify.mjs typecheck",
+    "test": "node scripts/verify.mjs test",
+    "build": "node scripts/verify.mjs build",
+    "verify": "node scripts/verify.mjs verify",
+    "contracts:generate": "npm --workspace @jepret/contracts run generate",
+    "contracts:check": "npm --workspace @jepret/contracts run check"
+  }
+}
