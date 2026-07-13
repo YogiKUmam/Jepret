@@ -1,0 +1,15 @@
+{
+  "name": "@jepret/contracts",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "export": "uv run --project ../../apps/api python ../../apps/api/scripts/export_openapi.py",
+    "generate": "npm run export && openapi-typescript openapi.json -o src/schema.d.ts",
+    "check": "npm run generate && git diff --exit-code -- openapi.json src/schema.d.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0"
+  },
+  "exports": { ".": "./src/index.ts" }
+}
