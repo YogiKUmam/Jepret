@@ -1,0 +1,61 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_DB: jepret
+          POSTGRES_USER: jepret
+          POSTGRES_PASSWORD: jepret
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U jepret -d jepret"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      JEPRET_DATABASE_URL: postgresql+asyncpg://jepret:jepret@localhost:5432/jepret
+      JEPRET_PUBLIC_ORIGIN: http://localhost:8080
+      JEPRET_MINIO_ENDPOINT: http://localhost:9000
+      JEPRET_MINIO_ACCESS_KEY: minioadmin
+      JEPRET_MINIO_SECRET_KEY: minioadmin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.28"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: npm ci
+      - run: uv sync --project apps/api --frozen
+      - run: uv run --project apps/api ruff format --check apps/api
+      - run: npm run verify
+      - run: uv run --project apps/api pytest -m integration apps/api/tests/integration/test_database.py -q
+      - run: npm run contracts:check
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: docker compose up -d --build
+      - run: docker compose run --rm migrate
+      - run: npm --workspace @jepret/web run e2e
+      - if: always()
+        run: docker compose logs --no-color
