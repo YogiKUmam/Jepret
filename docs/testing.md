@@ -19,7 +19,7 @@ Marker `integration` di-deselect secara default (`addopts = "-m 'not integration
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d db
-$env:JEPRET_DATABASE_URL='postgresql+asyncpg://jepret:jepret@localhost:5432/jepret'
+$env:JEPRET_DATABASE_URL='postgresql+asyncpg://jepret:jepret@localhost:15432/jepret'
 $env:JEPRET_PUBLIC_ORIGIN='http://localhost:8080'
 $env:JEPRET_MINIO_ENDPOINT='http://localhost:9000'
 $env:JEPRET_MINIO_ACCESS_KEY='minioadmin'
