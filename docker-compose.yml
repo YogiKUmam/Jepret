@@ -51,7 +51,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-jepret}
       POSTGRES_USER: ${POSTGRES_USER:-jepret}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jepret}
-    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    volumes: ["postgres_data:/var/lib/postgresql"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
