@@ -7,8 +7,12 @@ export default function HomePage() {
     <main className="min-h-screen bg-[var(--surface)] pb-24 text-[var(--surface-foreground)]">
       <AppHeader />
       <section className="mx-auto max-w-6xl px-5 py-10">
-        <p className="text-xs uppercase tracking-[0.18em] text-[var(--primary)]">Jepret</p>
-        <h1 className="max-w-xl font-serif text-5xl leading-none">Cerita yang layak diingat.</h1>
+        <p className="text-xs uppercase tracking-[0.18em] text-[var(--primary)]">
+          Jepret
+        </p>
+        <h1 className="max-w-xl font-serif text-5xl leading-none">
+          Cerita yang layak diingat.
+        </h1>
         <p className="mt-5 max-w-xl text-[var(--muted)]">
           Temukan fotografer dan videografer terverifikasi untuk setiap momen.
         </p>
@@ -22,7 +26,10 @@ export default function HomePage() {
           />
         </label>
       </section>
-      <section aria-labelledby="creator-heading" className="mx-auto max-w-6xl px-5">
+      <section
+        aria-labelledby="creator-heading"
+        className="mx-auto max-w-6xl px-5"
+      >
         <h2 id="creator-heading" className="font-serif text-2xl">
           Pilihan di dekatmu
         </h2>

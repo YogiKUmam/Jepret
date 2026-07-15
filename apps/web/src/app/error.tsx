@@ -1,6 +1,11 @@
 "use client";
 
-export default function ErrorPage({ reset }: { error: Error; reset: () => void }) {
+export default function ErrorPage({
+  reset,
+}: {
+  error: Error;
+  reset: () => void;
+}) {
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--surface)] px-5 text-[var(--surface-foreground)]">
       <div>

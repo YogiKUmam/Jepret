@@ -1,9 +1,11 @@
 # AGENTS.md
 
 ## Mission
+
 Build and maintain Jepret, a mobile-first marketplace for clients and visual creators.
 
 ## Working rules
+
 - Inspect existing code before editing.
 - Keep the architecture a modular monolith.
 - Prefer simple, maintainable solutions over clever abstractions.
@@ -17,11 +19,13 @@ Build and maintain Jepret, a mobile-first marketplace for clients and visual cre
 - Every booking/payment change requires transaction and idempotency review.
 
 ## Language
+
 - Code, identifiers, schema, and technical comments: English.
 - User-facing UI: Indonesian.
 - Documentation: Indonesian, with English technical terms where clearer.
 
 ## Frontend
+
 - TypeScript strict mode.
 - Accessible components.
 - Mobile-first.
@@ -30,6 +34,7 @@ Build and maintain Jepret, a mobile-first marketplace for clients and visual cre
 - Keep feature code grouped by domain.
 
 ## Backend
+
 - Keep route handlers thin.
 - Put domain rules in testable services.
 - Validate inputs and authorize every action.
@@ -38,7 +43,9 @@ Build and maintain Jepret, a mobile-first marketplace for clients and visual cre
 - Use transactions for booking, payment, review, and availability-sensitive operations.
 
 ## Quality gates
+
 Before declaring a task complete:
+
 1. Run formatter.
 2. Run lint.
 3. Run type-check.
@@ -49,7 +56,9 @@ Before declaring a task complete:
 8. Run `npm run verify` from the repository root before declaring Phase 1 work complete.
 
 ## Reporting
+
 At the end of each task, report:
+
 - summary
 - files changed
 - migrations

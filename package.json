@@ -2,9 +2,16 @@
   "name": "jepret",
   "private": true,
   "version": "0.1.0",
-  "engines": { "node": ">=24 <25" },
-  "workspaces": ["apps/web", "packages/contracts"],
-  "devDependencies": { "prettier": "3.9.5" },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "workspaces": [
+    "apps/web",
+    "packages/contracts"
+  ],
+  "devDependencies": {
+    "prettier": "3.9.5"
+  },
   "scripts": {
     "format": "node scripts/verify.mjs format",
     "format:check": "node scripts/verify.mjs formatcheck",

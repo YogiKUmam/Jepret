@@ -10,7 +10,10 @@ const groups = {
     [npm, ["exec", "prettier", "--", "--write", "."]],
   ],
   formatcheck: [
-    [uv, ["run", "--project", "apps/api", "ruff", "format", "--check", "apps/api"]],
+    [
+      uv,
+      ["run", "--project", "apps/api", "ruff", "format", "--check", "apps/api"],
+    ],
     [npm, ["exec", "prettier", "--", "--check", "."]],
   ],
   lint: [
@@ -44,9 +47,14 @@ for (const group of order) {
     console.log(`\n[verify:${group}] ${command} ${args.join(" ")}`);
     // shell:true is required on Windows to launch npm.cmd (Node blocks
     // .cmd files with shell:false since CVE-2024-27980).
-    const result = spawnSync(command, args, { stdio: "inherit", shell: isWindows });
+    const result = spawnSync(command, args, {
+      stdio: "inherit",
+      shell: isWindows,
+    });
     if (result.error) {
-      console.error(`[verify:${group}] failed to start: ${result.error.message}`);
+      console.error(
+        `[verify:${group}] failed to start: ${result.error.message}`,
+      );
       process.exit(1);
     }
     if (result.status !== 0) {

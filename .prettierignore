@@ -4,3 +4,4 @@ apps/api/
 package-lock.json
 .next/
 node_modules/
+docs/superpowers/
