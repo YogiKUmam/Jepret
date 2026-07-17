@@ -16,3 +16,4 @@ __pycache__/
 *.pyc
 postgres-data/
 minio-data/
+*.tsbuildinfo
