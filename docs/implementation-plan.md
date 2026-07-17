@@ -1,18 +1,24 @@
 # Progress Implementasi Jepret
 
 - [x] Phase 0 — Discovery dan design approval
-- [ ] Phase 1 — Foundation
+- [x] Phase 1 — Foundation
   - [x] Governance dan workspace
   - [x] API system foundation
   - [x] Database dan migration baseline
-  - [x] Generated contracts (exporter + workspace; artefak generate menunggu verifikasi lokal)
+  - [x] Generated contracts
   - [x] Mobile-first web shell
   - [x] Local Docker stack
-  - [x] CI dan final verification (pipeline dibuat; bukti verifikasi lokal menyusul)
+  - [x] CI dan final verification
 
-  > Catatan: seluruh file Phase 1 selesai ditulis. Penandaan Phase 1 COMPLETE menunggu bukti
-  > `npm run verify`, integration test PostgreSQL, dan E2E Playwright yang harus dijalankan
-  > pada mesin dengan akses network + Docker (lihat docs/testing.md).
+  **Bukti verifikasi (2026-07-17, mesin lokal Windows):**
+
+  - `npm run verify` hijau penuh: ruff format check, prettier check, ruff lint,
+    ESLint (0 warning), mypy strict, tsc, pytest (6 passed, 1 deselected),
+    Vitest (2 passed), contracts check (tanpa diff), Next.js build, compose config.
+  - Integration test PostgreSQL: 1 passed (via debug port 15432).
+  - E2E Playwright mobile-chromium: 2 passed (shell + health same-origin, WebSocket upgrade).
+  - Stack Compose sehat: gateway, web, api, db, minio; migration baseline `20260713_0001` sukses.
+  - Homepage, `/health`, `/ready` terverifikasi melalui gateway `http://localhost:8080`.
 
 - [ ] Phase 2 — Auth dan profiles
 - [ ] Phase 3 — Marketplace
