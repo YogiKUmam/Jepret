@@ -1,17 +1,34 @@
 from fastapi import APIRouter, Request, Response
 
 from app.api.deps import SESSION_COOKIE, CurrentUser, DbSession
-from app.api.schemas import LoginRequest, MessageEnvelope, RegisterRequest, UserEnvelope, UserOut
+from app.api.schemas import (
+    CreatorProfileOut,
+    LoginRequest,
+    MessageEnvelope,
+    RegisterRequest,
+    UserEnvelope,
+    UserOut,
+)
 from app.core.config import Environment, get_settings
-from app.db.models import User
+from app.db.models import CreatorProfile, User
 from app.services import auth as auth_service
 from app.services.auth import SESSION_TTL
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
-def _user_out(user: User) -> UserOut:
-    return UserOut.model_validate(user, from_attributes=True)
+def _user_out(user: User, profile: CreatorProfile | None) -> UserOut:
+    return UserOut(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        is_admin=user.is_admin,
+        creator_profile=(
+            CreatorProfileOut.model_validate(profile, from_attributes=True)
+            if profile is not None
+            else None
+        ),
+    )
 
 
 def set_session_cookie(response: Response, token: str) -> None:
@@ -37,14 +54,14 @@ async def register(payload: RegisterRequest, response: Response, db: DbSession) 
         db, email=payload.email, password=payload.password, full_name=payload.full_name
     )
     set_session_cookie(response, token)
-    return UserEnvelope(data=_user_out(user))
+    return UserEnvelope(data=_user_out(user, None))
 
 
 @router.post("/login", response_model=UserEnvelope)
 async def login(payload: LoginRequest, response: Response, db: DbSession) -> UserEnvelope:
     user, token = await auth_service.login(db, email=payload.email, password=payload.password)
     set_session_cookie(response, token)
-    return UserEnvelope(data=_user_out(user))
+    return UserEnvelope(data=_user_out(user, user.creator_profile))
 
 
 @router.post("/logout", response_model=MessageEnvelope)
@@ -58,4 +75,4 @@ async def logout(request: Request, response: Response, db: DbSession) -> Message
 
 @router.get("/me", response_model=UserEnvelope)
 async def me(user: CurrentUser) -> UserEnvelope:
-    return UserEnvelope(data=_user_out(user))
+    return UserEnvelope(data=_user_out(user, user.creator_profile))
