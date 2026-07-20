@@ -72,7 +72,19 @@ MinIO berjalan internal pada jaringan Compose. Bucket `jepret-public` dan `jepre
 
 ## Akun demo
 
-Belum ada. Akun demo diperkenalkan pada fase auth/seed (Phase 2) dan tidak tersedia pada Phase 1.
+Jalankan seeding setelah migration (khusus lokal):
+
+```bash
+docker compose run --rm seed
+```
+
+| Peran   | Email                | Password     |
+| ------- | -------------------- | ------------ |
+| Admin   | admin@jepret.local   | admin12345   |
+| Klien   | klien@jepret.local   | klien12345   |
+| Kreator | kreator@jepret.local | kreator12345 |
+
+Kreator demo sudah berstatus terverifikasi (Studio Cahaya). Kredensial ini hanya untuk pengembangan lokal dan tidak boleh dipakai di lingkungan publik.
 
 ## Troubleshooting
 
