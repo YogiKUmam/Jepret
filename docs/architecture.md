@@ -29,9 +29,9 @@ flowchart TD
 3. `CorrelationIdMiddleware` membaca atau membuat `X-Request-ID` dan mengembalikannya pada response.
 4. Error API selalu memakai envelope `{"error": {"code", "message", "details"}}`; sukses memakai `{"data": ...}`.
 
-## Planned auth flow (Phase 2)
+## Auth flow (Phase 2 — implemented)
 
-Authentication berbasis session cookie melalui origin yang sama sehingga tidak memerlukan CORS. Endpoint auth berada di bawah `/api/v1/auth/*`; proteksi CSRF memanfaatkan perilaku same-origin gateway. Detail difinalisasi pada fase auth.
+Authentication berbasis session cookie same-origin tanpa CORS. Password di-hash Argon2id (pwdlib); session opaque token disimpan sebagai hash SHA-256 di tabel `sessions` dengan umur 30 hari. Cookie `jepret_session` bersifat HttpOnly + SameSite=Lax (+Secure di production). Endpoint: `/api/v1/auth/{register,login,logout,me}`, `/api/v1/profiles/*`, `/api/v1/admin/creator-applications*`. Proteksi CSRF: SameSite=Lax dikombinasikan `OriginCheckMiddleware` yang menolak method mutasi dengan header Origin asing (`FORBIDDEN_ORIGIN`). Satu akun dapat mengaktifkan profil kreator (status draft → pending → approved/rejected, approval oleh admin).
 
 ## Planned storage flow (fase fitur)
 

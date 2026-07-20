@@ -24,8 +24,10 @@ $env:JEPRET_PUBLIC_ORIGIN='http://localhost:8080'
 $env:JEPRET_MINIO_ENDPOINT='http://localhost:9000'
 $env:JEPRET_MINIO_ACCESS_KEY='minioadmin'
 $env:JEPRET_MINIO_SECRET_KEY='minioadmin'
-uv run --project apps/api pytest -m integration apps/api/tests/integration/test_database.py -q
+uv run --project apps/api pytest -m integration apps/api/tests -q
 ```
+
+Catatan: menjalankan `docker compose up -d` tanpa file debug dapat me-recreate `db` dan menghapus mapping port 15432 — jalankan ulang perintah override bila koneksi ditolak.
 
 ## Backend static checks
 
@@ -60,6 +62,7 @@ Stack Compose harus berjalan terlebih dahulu:
 ```bash
 docker compose up -d --build
 docker compose run --rm migrate
+docker compose run --rm seed
 npm --workspace @jepret/web exec playwright install chromium
 npm --workspace @jepret/web run e2e
 ```

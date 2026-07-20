@@ -20,7 +20,16 @@
   - Stack Compose sehat: gateway, web, api, db, minio; migration baseline `20260713_0001` sukses.
   - Homepage, `/health`, `/ready` terverifikasi melalui gateway `http://localhost:8080`.
 
-- [ ] Phase 2 — Auth dan profiles
+- [x] Phase 2 — Auth dan profiles
+
+  **Bukti verifikasi (2026-07-20, mesin lokal Windows):**
+
+  - pytest integration: 17 passed (auth, profiles, admin approval, schema, permission tests).
+  - E2E Playwright mobile-chromium: 4 passed (foundation + daftar→keluar→masuk→onboarding
+    kreator→ajukan verifikasi + pesan kredensial salah).
+  - Migration `20260717_0002` (users, sessions, creator_profiles) dan seed 3 akun demo sukses.
+  - Kontrak ter-regenerate dengan 10 route baru; `npm run verify` hijau.
+
 - [ ] Phase 3 — Marketplace
 - [ ] Phase 4 — Booking
 - [ ] Phase 5 — Payment
