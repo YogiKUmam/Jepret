@@ -1,17 +1,29 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from typing import Annotated
+
+from pydantic import BaseModel, Field, StringConstraints
+
+EmailAddress = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        to_lower=True,
+        max_length=255,
+        pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+    ),
+]
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: EmailAddress
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=2, max_length=100)
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: EmailAddress
     password: str = Field(min_length=1, max_length=128)
 
 
