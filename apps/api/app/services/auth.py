@@ -68,9 +68,7 @@ async def login(db: AsyncSession, *, email: str, password: str) -> tuple[User, s
 
 
 async def logout(db: AsyncSession, *, token: str) -> None:
-    await db.execute(
-        delete(UserSession).where(UserSession.token_hash == hash_session_token(token))
-    )
+    await db.execute(delete(UserSession).where(UserSession.token_hash == hash_session_token(token)))
     await db.commit()
 
 

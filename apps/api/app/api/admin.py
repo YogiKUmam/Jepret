@@ -15,9 +15,7 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
 @router.get("/creator-applications", response_model=CreatorApplicationListEnvelope)
-async def list_creator_applications(
-    _: AdminUser, db: DbSession
-) -> CreatorApplicationListEnvelope:
+async def list_creator_applications(_: AdminUser, db: DbSession) -> CreatorApplicationListEnvelope:
     rows = await profile_service.list_pending_applications(db)
     return CreatorApplicationListEnvelope(
         data=[

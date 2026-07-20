@@ -15,7 +15,9 @@ router = APIRouter(prefix="/api/v1/profiles", tags=["profiles"])
 
 
 @router.patch("/me", response_model=UserEnvelope)
-async def update_me(payload: UpdateProfileRequest, user: CurrentUser, db: DbSession) -> UserEnvelope:
+async def update_me(
+    payload: UpdateProfileRequest, user: CurrentUser, db: DbSession
+) -> UserEnvelope:
     updated = await profile_service.update_full_name(db, user=user, full_name=payload.full_name)
     profile = await profile_service.get_creator_profile(db, user=updated)
     return UserEnvelope(

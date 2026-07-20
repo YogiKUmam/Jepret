@@ -11,9 +11,24 @@ from app.db.models import CreatorProfile, User
 from app.db.session import dispose_engine, get_engine
 
 DEMO_USERS = [
-    {"email": "admin@jepret.local", "password": "admin12345", "full_name": "Admin Jepret", "is_admin": True},
-    {"email": "klien@jepret.local", "password": "klien12345", "full_name": "Klien Demo", "is_admin": False},
-    {"email": "kreator@jepret.local", "password": "kreator12345", "full_name": "Kreator Demo", "is_admin": False},
+    {
+        "email": "admin@jepret.local",
+        "password": "admin12345",
+        "full_name": "Admin Jepret",
+        "is_admin": True,
+    },
+    {
+        "email": "klien@jepret.local",
+        "password": "klien12345",
+        "full_name": "Klien Demo",
+        "is_admin": False,
+    },
+    {
+        "email": "kreator@jepret.local",
+        "password": "kreator12345",
+        "full_name": "Kreator Demo",
+        "is_admin": False,
+    },
 ]
 
 DEMO_CREATOR_PROFILE = {

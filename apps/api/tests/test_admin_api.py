@@ -45,11 +45,7 @@ async def test_admin_can_approve_pending_application(email_cleanup: list[str]) -
 
         listing = admin.get("/api/v1/admin/creator-applications")
         assert listing.status_code == 200
-        entries = [
-            item
-            for item in listing.json()["data"]
-            if item["user_email"] == creator_email
-        ]
+        entries = [item for item in listing.json()["data"] if item["user_email"] == creator_email]
         assert len(entries) == 1
         profile_id = entries[0]["profile"]["id"]
 
