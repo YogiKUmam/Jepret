@@ -3,13 +3,13 @@ import uuid
 import pytest
 from sqlalchemy import text
 
-from app.db.session import get_engine
+from tests.conftest import fresh_connection
 
 
 @pytest.mark.integration
 async def test_users_table_accepts_insert_and_unique_email() -> None:
     email = f"schema-{uuid.uuid4().hex}@jepret.local"
-    async with get_engine().begin() as connection:
+    async with fresh_connection() as connection:
         await connection.execute(
             text(
                 "INSERT INTO users (id, email, password_hash, full_name)"
