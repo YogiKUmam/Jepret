@@ -16,6 +16,16 @@ class ErrorEnvelope(BaseModel):
     error: ErrorBody
 
 
+class DomainError(Exception):
+    """Business rule violation mapped to the stable API error envelope."""
+
+    def __init__(self, code: str, message: str, status_code: int) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.status_code = status_code
+
+
 def error_response(status_code: int, code: str, message: str) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
@@ -31,3 +41,7 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(404)
     async def not_found_handler(_: Request, __: Exception) -> JSONResponse:
         return error_response(404, "ROUTE_NOT_FOUND", "Endpoint tidak ditemukan.")
+
+    @app.exception_handler(DomainError)
+    async def domain_error_handler(_: Request, exc: DomainError) -> JSONResponse:
+        return error_response(exc.status_code, exc.code, exc.message)
