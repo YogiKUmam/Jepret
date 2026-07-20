@@ -21,3 +21,10 @@ async def email_cleanup() -> AsyncIterator[list[str]]:
             await connection.execute(
                 text("DELETE FROM users WHERE email = ANY(:emails)"), {"emails": emails}
             )
+
+
+async def make_admin(email: str) -> None:
+    async with get_engine().begin() as connection:
+        await connection.execute(
+            text("UPDATE users SET is_admin = true WHERE email = :email"), {"email": email}
+        )

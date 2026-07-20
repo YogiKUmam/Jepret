@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import DomainError
 from app.core.security import (
@@ -52,7 +53,11 @@ async def register_user(
 
 
 async def login(db: AsyncSession, *, email: str, password: str) -> tuple[User, str]:
-    user = await db.scalar(select(User).where(User.email == normalize_email(email)))
+    user = await db.scalar(
+        select(User)
+        .options(selectinload(User.creator_profile))
+        .where(User.email == normalize_email(email))
+    )
     password_ok = verify_password(password, user.password_hash if user else _DUMMY_HASH)
     if user is None or not password_ok:
         raise DomainError("INVALID_CREDENTIALS", "Email atau password salah.", 401)
@@ -72,6 +77,7 @@ async def logout(db: AsyncSession, *, token: str) -> None:
 async def get_user_by_session_token(db: AsyncSession, *, token: str) -> User | None:
     result = await db.scalar(
         select(User)
+        .options(selectinload(User.creator_profile))
         .join(UserSession, UserSession.user_id == User.id)
         .where(
             UserSession.token_hash == hash_session_token(token),

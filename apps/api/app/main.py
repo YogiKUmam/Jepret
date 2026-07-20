@@ -3,7 +3,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
+from app.api.profiles import router as profiles_router
 from app.api.system import router as system_router
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
@@ -31,6 +33,8 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(system_router)
     app.include_router(auth_router)
+    app.include_router(profiles_router)
+    app.include_router(admin_router)
     return app
 
 
