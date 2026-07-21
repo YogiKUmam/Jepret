@@ -123,6 +123,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/creators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Creators */
+        get: operations["list_creators_api_v1_creators_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/creators/{creator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Creator */
+        get: operations["get_creator_api_v1_creators__creator_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles/me": {
         parameters: {
             query?: never;
@@ -241,6 +275,17 @@ export interface components {
             /** Starting Price Idr */
             starting_price_idr: number;
         };
+        /** CreatorListData */
+        CreatorListData: {
+            /** Items */
+            items: components["schemas"]["CreatorPublicOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** CreatorListEnvelope */
+        CreatorListEnvelope: {
+            data: components["schemas"]["CreatorListData"];
+        };
         /** CreatorProfileEnvelope */
         CreatorProfileEnvelope: {
             data: components["schemas"]["CreatorProfileOut"];
@@ -268,6 +313,28 @@ export interface components {
             status: string;
             /** Submitted At */
             submitted_at: string | null;
+        };
+        /** CreatorPublicEnvelope */
+        CreatorPublicEnvelope: {
+            data: components["schemas"]["CreatorPublicOut"];
+        };
+        /** CreatorPublicOut */
+        CreatorPublicOut: {
+            /** Bio */
+            bio: string;
+            /** City */
+            city: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Specialty */
+            specialty: string;
+            /** Starting Price Idr */
+            starting_price_idr: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -518,6 +585,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_creators_api_v1_creators_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                city?: string | null;
+                specialty?: string | null;
+                min_price?: number | null;
+                max_price?: number | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorListEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_creator_api_v1_creators__creator_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                creator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorPublicEnvelope"];
                 };
             };
             /** @description Validation Error */

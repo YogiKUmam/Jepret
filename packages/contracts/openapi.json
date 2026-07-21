@@ -80,6 +80,46 @@
         "title": "CreatorDraftRequest",
         "type": "object"
       },
+      "CreatorListData": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CreatorPublicOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "CreatorListData",
+        "type": "object"
+      },
+      "CreatorListEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatorListData"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "CreatorListEnvelope",
+        "type": "object"
+      },
       "CreatorProfileEnvelope": {
         "properties": {
           "data": {
@@ -160,6 +200,57 @@
           "reviewed_at"
         ],
         "title": "CreatorProfileOut",
+        "type": "object"
+      },
+      "CreatorPublicEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatorPublicOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "CreatorPublicEnvelope",
+        "type": "object"
+      },
+      "CreatorPublicOut": {
+        "properties": {
+          "bio": {
+            "title": "Bio",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "specialty": {
+            "title": "Specialty",
+            "type": "string"
+          },
+          "starting_price_idr": {
+            "title": "Starting Price Idr",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "city",
+          "bio",
+          "specialty",
+          "starting_price_idr"
+        ],
+        "title": "CreatorPublicOut",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -584,6 +675,196 @@
         "summary": "Register",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/creators": {
+      "get": {
+        "operationId": "list_creators_api_v1_creators_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "city",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "City"
+            }
+          },
+          {
+            "in": "query",
+            "name": "specialty",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 50,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Specialty"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_price",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Price"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_price",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Price"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatorListEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Creators",
+        "tags": [
+          "creators"
+        ]
+      }
+    },
+    "/api/v1/creators/{creator_id}": {
+      "get": {
+        "operationId": "get_creator_api_v1_creators__creator_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "creator_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Creator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatorPublicEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Creator",
+        "tags": [
+          "creators"
         ]
       }
     },
