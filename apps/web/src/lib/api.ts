@@ -63,3 +63,17 @@ export async function apiFetch<T>(
 
   return (payload as Envelope<T>).data;
 }
+
+export interface CreatorPublic {
+  id: string;
+  display_name: string;
+  city: string;
+  bio: string;
+  specialty: string;
+  starting_price_idr: number;
+}
+
+export interface CreatorListPage {
+  items: CreatorPublic[];
+  next_cursor: string | null;
+}
