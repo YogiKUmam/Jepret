@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
+from app.api.bookings import router as bookings_router
 from app.api.creators import router as creators_router
 from app.api.profiles import router as profiles_router
 from app.api.system import router as system_router
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(profiles_router)
     app.include_router(creators_router)
+    app.include_router(bookings_router)
     app.include_router(admin_router)
     return app
 

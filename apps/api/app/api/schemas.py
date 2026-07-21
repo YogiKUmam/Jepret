@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated
 
 from pydantic import BaseModel, Field, StringConstraints
@@ -100,3 +100,37 @@ class CreatorListData(BaseModel):
 
 class CreatorListEnvelope(BaseModel):
     data: CreatorListData
+
+
+class BookingCreatorOut(BaseModel):
+    id: uuid.UUID
+    display_name: str
+    city: str
+    specialty: str
+
+
+class BookingOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    event_date: date
+    event_city: str
+    notes: str
+    quoted_price_idr: int
+    created_at: datetime
+    creator: BookingCreatorOut
+    client_name: str
+
+
+class BookingEnvelope(BaseModel):
+    data: BookingOut
+
+
+class BookingListEnvelope(BaseModel):
+    data: list[BookingOut]
+
+
+class CreateBookingRequest(BaseModel):
+    creator_id: uuid.UUID
+    event_date: date
+    event_city: str = Field(min_length=2, max_length=100)
+    notes: str = Field(default="", max_length=2000)
