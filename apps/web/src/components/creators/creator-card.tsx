@@ -5,7 +5,11 @@ import { formatIdr } from "@/lib/format";
 
 export function CreatorCard({ creator }: { creator: CreatorPublic }) {
   return (
-    <Link href={`/kreator/${creator.id}`} className="block">
+    <Link
+      href={`/kreator/${creator.id}`}
+      aria-label={creator.display_name}
+      className="block"
+    >
       <article className="overflow-hidden rounded-2xl bg-[var(--background)] text-[var(--foreground)]">
         <div
           aria-hidden
