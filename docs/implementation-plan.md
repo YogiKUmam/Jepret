@@ -30,7 +30,18 @@
   - Migration `20260717_0002` (users, sessions, creator_profiles) dan seed 3 akun demo sukses.
   - Kontrak ter-regenerate dengan 10 route baru; `npm run verify` hijau.
 
-- [ ] Phase 3 — Marketplace
+- [x] Phase 3 — Marketplace
+
+  **Bukti verifikasi (2026-07-21, mesin lokal Windows):**
+
+  - pytest integration: 22 passed (termasuk listing approved-only, filter q/kota/
+    spesialisasi/harga, paginasi cursor tanpa duplikat, validasi param, detail 404).
+  - E2E Playwright mobile-chromium: 6 passed (pencarian → detail Studio Cahaya,
+    filter tanpa hasil → empty state, + regresi foundation & auth).
+  - Migration `20260721_0003` (index listing) dan seed 8 kreator approved idempoten.
+  - Beranda live dengan cursor "Muat lebih"; detail `/kreator/[id]`;
+    kartu link ber-aria-label (fix accessible name Chromium).
+
 - [ ] Phase 4 — Booking
 - [ ] Phase 5 — Payment
 - [ ] Phase 6 — Chat dan deliverables
