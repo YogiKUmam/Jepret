@@ -60,14 +60,12 @@ export default function KreatorDetailPage() {
             <p className="mt-6 text-lg font-semibold">
               Mulai {formatIdr(creator.starting_price_idr)}
             </p>
-            <button
-              type="button"
-              disabled
-              title="Segera hadir"
-              className="mt-6 min-h-11 rounded-xl bg-[var(--primary)] px-6 font-medium opacity-60"
+            <Link
+              href={`/kreator/${creator.id}/booking`}
+              className="mt-6 inline-block min-h-11 rounded-xl bg-[var(--primary)] px-6 py-3 font-medium"
             >
-              Hubungi kreator (segera hadir)
-            </button>
+              Ajukan booking
+            </Link>
           </article>
         ) : null}
       </section>

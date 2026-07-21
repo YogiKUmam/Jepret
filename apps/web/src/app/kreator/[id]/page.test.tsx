@@ -49,8 +49,8 @@ describe("KreatorDetailPage", () => {
     expect(screen.getByText("Fotografer pernikahan.")).toBeVisible();
     expect(screen.getByText(/mulai rp/i)).toBeVisible();
     expect(
-      screen.getByRole("button", { name: /hubungi kreator/i }),
-    ).toBeDisabled();
+      screen.getByRole("link", { name: /ajukan booking/i }),
+    ).toHaveAttribute("href", "/kreator/abc/booking");
   });
 
   it("shows a not-found state for missing creators", async () => {

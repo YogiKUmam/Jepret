@@ -77,3 +77,29 @@ export interface CreatorListPage {
   items: CreatorPublic[];
   next_cursor: string | null;
 }
+
+export type BookingStatus =
+  | "requested"
+  | "accepted"
+  | "rejected"
+  | "completed"
+  | "cancelled";
+
+export interface BookingCreator {
+  id: string;
+  display_name: string;
+  city: string;
+  specialty: string;
+}
+
+export interface Booking {
+  id: string;
+  status: BookingStatus;
+  event_date: string;
+  event_city: string;
+  notes: string;
+  quoted_price_idr: number;
+  created_at: string;
+  creator: BookingCreator;
+  client_name: string;
+}

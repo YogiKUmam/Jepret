@@ -22,8 +22,8 @@ test("marketplace search leads to a creator detail page", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText(/bandung · wedding/i)).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /hubungi kreator/i }),
-  ).toBeDisabled();
+    page.getByRole("link", { name: /ajukan booking/i }),
+  ).toBeVisible();
 });
 
 test("filter without matches shows the empty state", async ({ page }) => {

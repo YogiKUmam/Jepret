@@ -3,7 +3,7 @@ import { CalendarDays, Compass, MessageCircle, UserRound } from "lucide-react";
 
 const items = [
   ["Jelajah", Compass, "/"],
-  ["Booking", CalendarDays, null],
+  ["Booking", CalendarDays, "/booking"],
   ["Chat", MessageCircle, null],
   ["Profil", UserRound, "/profil"],
 ] as const;
