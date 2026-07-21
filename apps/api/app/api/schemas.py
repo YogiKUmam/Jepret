@@ -78,3 +78,25 @@ class CreatorApplicationOut(BaseModel):
 
 class CreatorApplicationListEnvelope(BaseModel):
     data: list[CreatorApplicationOut]
+
+
+class CreatorPublicOut(BaseModel):
+    id: uuid.UUID
+    display_name: str
+    city: str
+    bio: str
+    specialty: str
+    starting_price_idr: int
+
+
+class CreatorPublicEnvelope(BaseModel):
+    data: CreatorPublicOut
+
+
+class CreatorListData(BaseModel):
+    items: list[CreatorPublicOut]
+    next_cursor: str | None
+
+
+class CreatorListEnvelope(BaseModel):
+    data: CreatorListData
