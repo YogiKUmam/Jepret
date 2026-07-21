@@ -33,6 +33,15 @@ flowchart TD
 
 Authentication berbasis session cookie same-origin tanpa CORS. Password di-hash Argon2id (pwdlib); session opaque token disimpan sebagai hash SHA-256 di tabel `sessions` dengan umur 30 hari. Cookie `jepret_session` bersifat HttpOnly + SameSite=Lax (+Secure di production). Endpoint: `/api/v1/auth/{register,login,logout,me}`, `/api/v1/profiles/*`, `/api/v1/admin/creator-applications*`. Proteksi CSRF: SameSite=Lax dikombinasikan `OriginCheckMiddleware` yang menolak method mutasi dengan header Origin asing (`FORBIDDEN_ORIGIN`). Satu akun dapat mengaktifkan profil kreator (status draft → pending → approved/rejected, approval oleh admin).
 
+## Marketplace flow (Phase 3 — implemented)
+
+Endpoint publik tanpa sesi: `GET /api/v1/creators` (listing profil `approved`
+dengan filter `q` ILIKE nama/bio, kota, spesialisasi, rentang harga; paginasi
+keyset `reviewed_at DESC, id DESC` dengan cursor base64url) dan
+`GET /api/v1/creators/{id}` (404 untuk profil non-approved). Index
+`ix_creator_profiles_listing` menopang jalur listing. Frontend: beranda memakai
+`useInfiniteQuery` dengan tombol "Muat lebih", detail di `/kreator/[id]`.
+
 ## Planned storage flow (fase fitur)
 
 Upload media memakai bucket privat dengan signed URL berbatas waktu yang diterbitkan API setelah authorization. Bucket publik hanya untuk aset non-sensitif. Tidak ada direct public read terhadap bucket privat.

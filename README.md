@@ -84,7 +84,7 @@ docker compose run --rm seed
 | Klien   | klien@jepret.local   | klien12345   |
 | Kreator | kreator@jepret.local | kreator12345 |
 
-Kreator demo sudah berstatus terverifikasi (Studio Cahaya). Kredensial ini hanya untuk pengembangan lokal dan tidak boleh dipakai di lingkungan publik.
+Kreator demo sudah berstatus terverifikasi (Studio Cahaya). Seed juga membuat 7 kreator terverifikasi tambahan untuk marketplace (`kreator2@jepret.local` s.d. `kreator8@jepret.local`, password `kreator12345`). Kredensial ini hanya untuk pengembangan lokal dan tidak boleh dipakai di lingkungan publik.
 
 ## Troubleshooting
 
