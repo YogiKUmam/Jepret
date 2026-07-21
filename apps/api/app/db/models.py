@@ -1,21 +1,30 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 CREATOR_STATUSES = ("draft", "pending", "approved", "rejected")
+BOOKING_STATUSES = (
+    "requested",
+    "accepted",
+    "rejected",
+    "completed",
+    "cancelled",
+)
 
 
 class Base(DeclarativeBase):
@@ -92,3 +101,45 @@ class CreatorProfile(TimestampMixin, Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="creator_profile")
+    bookings: Mapped[list["Booking"]] = relationship(
+        back_populates="creator_profile", cascade="all, delete-orphan"
+    )
+
+
+class Booking(TimestampMixin, Base):
+    __tablename__ = "bookings"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('requested', 'accepted', 'rejected', 'completed', 'cancelled')",
+            name="ck_booking_status_valid",
+        ),
+        CheckConstraint("quoted_price_idr >= 0", name="ck_booking_price_non_negative"),
+        Index("ix_bookings_client", "client_id", "created_at"),
+        Index("ix_bookings_creator", "creator_profile_id", "created_at"),
+        Index(
+            "uq_bookings_accepted_date",
+            "creator_profile_id",
+            "event_date",
+            unique=True,
+            postgresql_where=text("status = 'accepted'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    creator_profile_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("creator_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    event_date: Mapped[date] = mapped_column(Date, nullable=False)
+    event_city: Mapped[str] = mapped_column(String(100), nullable=False)
+    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="requested", nullable=False)
+    quoted_price_idr: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    client: Mapped[User] = relationship()
+    creator_profile: Mapped[CreatorProfile] = relationship(back_populates="bookings")
