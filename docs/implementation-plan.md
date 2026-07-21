@@ -42,7 +42,13 @@
   - Beranda live dengan cursor "Muat lebih"; detail `/kreator/[id]`;
     kartu link ber-aria-label (fix accessible name Chromium).
 
-- [ ] Phase 4 — Booking
+- [x] Phase 4 — Booking
+
+  **Bukti verifikasi (2026-07-21, mesin lokal Windows):** lihat commit
+  Phase 4 — migration `20260721_0004` (tabel bookings + partial unique
+  accepted-date), 8 endpoint booking, halaman klien & kreator, seed 3 booking
+  demo, E2E alur ajukan → terima.
+
 - [ ] Phase 5 — Payment
 - [ ] Phase 6 — Chat dan deliverables
 - [ ] Phase 7 — Completion, reviews, disputes, admin

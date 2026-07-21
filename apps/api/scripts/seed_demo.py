@@ -1,14 +1,14 @@
 """Seed idempotent demo accounts for local development only."""
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.security import hash_password
-from app.db.models import CreatorProfile, User
+from app.db.models import Booking, CreatorProfile, User
 from app.db.session import dispose_engine, get_engine
 
 BASE_REVIEWED_AT = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
@@ -146,6 +146,49 @@ async def _upsert_user(db: AsyncSession, entry: dict[str, Any]) -> User:
     return user
 
 
+DEMO_BOOKINGS = [
+    {"days": 30, "status": "requested"},
+    {"days": 45, "status": "accepted"},
+    {"days": -20, "status": "completed"},
+]
+
+
+async def _seed_bookings(db: AsyncSession) -> None:
+    client = await db.scalar(select(User).where(User.email == "klien@jepret.local"))
+    creator_user = await db.scalar(select(User).where(User.email == "kreator@jepret.local"))
+    if client is None or creator_user is None:
+        return
+    profile = await db.scalar(
+        select(CreatorProfile).where(CreatorProfile.user_id == creator_user.id)
+    )
+    if profile is None:
+        return
+    today = datetime.now(UTC).date()
+    for entry in DEMO_BOOKINGS:
+        event_date: date = today + timedelta(days=int(entry["days"]))
+        existing = await db.scalar(
+            select(Booking).where(
+                Booking.client_id == client.id,
+                Booking.creator_profile_id == profile.id,
+                Booking.event_date == event_date,
+            )
+        )
+        if existing is not None:
+            continue
+        db.add(
+            Booking(
+                client_id=client.id,
+                creator_profile_id=profile.id,
+                event_date=event_date,
+                event_city=profile.city,
+                notes="Booking demo.",
+                status=str(entry["status"]),
+                quoted_price_idr=profile.starting_price_idr,
+            )
+        )
+        print(f"created booking demo {entry['status']} {event_date}")
+
+
 async def seed() -> None:
     factory = async_sessionmaker(get_engine(), expire_on_commit=False)
     async with factory() as db:
@@ -170,6 +213,8 @@ async def seed() -> None:
                 )
                 print(f"created creator profile {entry['profile']['display_name']} (approved)")
 
+        await db.flush()
+        await _seed_bookings(db)
         await db.commit()
     await dispose_engine()
 

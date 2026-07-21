@@ -42,6 +42,18 @@ keyset `reviewed_at DESC, id DESC` dengan cursor base64url) dan
 `ix_creator_profiles_listing` menopang jalur listing. Frontend: beranda memakai
 `useInfiniteQuery` dengan tombol "Muat lebih", detail di `/kreator/[id]`.
 
+## Booking flow (Phase 4 — implemented)
+
+Klien mengajukan booking (`POST /api/v1/bookings`) ke kreator `approved` dengan
+tanggal masa depan; harga di-snapshot dari `starting_price_idr`. Status:
+`requested → accepted|rejected`, lalu `accepted → completed|cancelled`
+(`requested → cancelled` juga sah). Kreator merespons via
+`/bookings/{id}/{accept,reject,complete}`; klien maupun kreator dapat
+`cancel` selama belum terminal. Semua transisi memakai `SELECT ... FOR UPDATE`;
+bentrok tanggal dijamin partial unique index `uq_bookings_accepted_date`
+(`DATE_UNAVAILABLE`). Halaman: `/kreator/[id]/booking`, `/booking`,
+`/booking/masuk`.
+
 ## Planned storage flow (fase fitur)
 
 Upload media memakai bucket privat dengan signed URL berbatas waktu yang diterbitkan API setelah authorization. Bucket publik hanya untuk aset non-sensitif. Tidak ada direct public read terhadap bucket privat.
