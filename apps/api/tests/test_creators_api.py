@@ -60,9 +60,7 @@ async def create_creator(
     if submit:
         assert client.post("/api/v1/profiles/me/creator/submit").status_code == 200
     if approve_offset_minutes is not None:
-        await _approve(
-            profile_id, BASE_REVIEWED_AT + timedelta(minutes=approve_offset_minutes)
-        )
+        await _approve(profile_id, BASE_REVIEWED_AT + timedelta(minutes=approve_offset_minutes))
     client.post("/api/v1/auth/logout")
     return profile_id
 

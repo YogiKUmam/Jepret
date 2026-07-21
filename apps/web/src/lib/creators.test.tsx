@@ -67,9 +67,11 @@ describe("useCreator", () => {
   it("returns the creator on success", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        jsonResponse(200, { data: { id: "x", display_name: "Studio Uji" } }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(200, { data: { id: "x", display_name: "Studio Uji" } }),
+        ),
     );
     const { result } = renderHook(() => useCreator("x"), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));

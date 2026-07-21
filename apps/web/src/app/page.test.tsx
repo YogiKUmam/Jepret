@@ -57,10 +57,9 @@ describe("HomePage", () => {
       screen.getByRole("navigation", { name: /navigasi utama/i }),
     ).toBeVisible();
     expect(await screen.findByText("Studio Cahaya")).toBeVisible();
-    expect(screen.getByRole("link", { name: /studio cahaya/i })).toHaveAttribute(
-      "href",
-      "/kreator/a",
-    );
+    expect(
+      screen.getByRole("link", { name: /studio cahaya/i }),
+    ).toHaveAttribute("href", "/kreator/a");
     expect(
       screen.queryByRole("button", { name: /muat lebih/i }),
     ).not.toBeInTheDocument();
@@ -94,9 +93,11 @@ describe("HomePage", () => {
   it("shows an empty state after a filter without matches", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        jsonResponse({ data: { items: [], next_cursor: null } }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse({ data: { items: [], next_cursor: null } }),
+        ),
     );
     renderHome();
     expect(

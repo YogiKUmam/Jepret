@@ -37,9 +37,7 @@ async def list_creators(
     )
     return CreatorListEnvelope(
         data=CreatorListData(
-            items=[
-                CreatorPublicOut.model_validate(item, from_attributes=True) for item in items
-            ],
+            items=[CreatorPublicOut.model_validate(item, from_attributes=True) for item in items],
             next_cursor=next_cursor,
         )
     )
