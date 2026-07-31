@@ -112,6 +112,18 @@ async def payment_event_count(payment_id: str) -> int:
     return count
 
 
+async def payment_state(payment_id: str) -> tuple[str, datetime | None]:
+    async with fresh_connection() as connection:
+        row = (
+            await connection.execute(
+                select(Payment.status, Payment.released_at).where(
+                    Payment.id == uuid.UUID(payment_id)
+                )
+            )
+        ).one()
+    return row.status, row.released_at
+
+
 async def set_booking_completed(booking_id: str) -> None:
     async with fresh_connection() as connection:
         await connection.execute(
@@ -277,6 +289,39 @@ async def test_simulate_paid_is_atomic_and_replay_is_idempotent(
     assert await payment_event_count(payment["id"]) == 1
 
 
+async def test_simulate_paid_conceals_payment_from_creator_and_unrelated_user(
+    email_cleanup: list[str],
+) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(
+            client, email_cleanup, "Studio Bukan Pembayar"
+        )
+        unrelated_email, _ = await make_creator(client, email_cleanup, "Studio Tidak Terkait")
+        client_email = register(client, email_cleanup, "Klien Pemilik Bayar")
+        booking = request_booking(client, profile_id)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        logout(client)
+
+        login(client, creator_email)
+        creator_attempt = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
+        logout(client)
+        login(client, unrelated_email)
+        unrelated_attempt = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
+        logout(client)
+        login(client, client_email)
+        payment_after = client.get(f"/api/v1/bookings/{booking['id']}/payments")
+        booking_after = client.get(f"/api/v1/bookings/{booking['id']}")
+
+    assert creator_attempt.status_code == unrelated_attempt.status_code == 404
+    assert creator_attempt.json()["error"]["code"] == "NOT_FOUND"
+    assert unrelated_attempt.json()["error"]["code"] == "NOT_FOUND"
+    assert payment_after.json()["data"]["status"] == "pending"
+    assert booking_after.json()["data"]["status"] == "awaiting_payment"
+    assert await payment_event_count(payment["id"]) == 0
+
+
 async def test_webhook_replay_failed_path_and_invalid_transitions(
     email_cleanup: list[str],
 ) -> None:
@@ -331,6 +376,52 @@ async def test_webhook_replay_failed_path_and_invalid_transitions(
     assert await payment_event_count(held_payment["id"]) == 1
 
 
+async def test_webhook_event_collision_is_not_a_replay_for_another_payment(
+    email_cleanup: list[str],
+) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(
+            client, email_cleanup, "Studio Event Bertabrakan"
+        )
+        client_email = register(client, email_cleanup, "Klien Event Bertabrakan")
+        first = request_booking(client, profile_id, days=61)
+        second = request_booking(client, profile_id, days=62)
+        accept_booking(client, first["id"], creator_email)
+        login(client, client_email)
+        accept_booking(client, second["id"], creator_email)
+        login(client, client_email)
+        first_payment = create_payment(client, first["id"], str(uuid.uuid4())).json()["data"]
+        second_payment = create_payment(client, second["id"], str(uuid.uuid4())).json()["data"]
+
+        event_id = "provider-collision-1"
+        first_paid = client.post(
+            "/api/v1/payments/webhooks/mock",
+            json={
+                "payment_id": first_payment["id"],
+                "event_id": event_id,
+                "event_type": "paid",
+            },
+        )
+        collision = client.post(
+            "/api/v1/payments/webhooks/mock",
+            json={
+                "payment_id": second_payment["id"],
+                "event_id": event_id,
+                "event_type": "paid",
+            },
+        )
+        second_after = client.get(f"/api/v1/bookings/{second['id']}/payments")
+        second_booking_after = client.get(f"/api/v1/bookings/{second['id']}")
+
+    assert first_paid.status_code == 200
+    assert collision.status_code == 409
+    assert collision.json()["error"]["code"] == "INVALID_PAYMENT_TRANSITION"
+    assert second_after.json()["data"]["status"] == "pending"
+    assert second_booking_after.json()["data"]["status"] == "awaiting_payment"
+    assert await payment_event_count(first_payment["id"]) == 1
+    assert await payment_event_count(second_payment["id"]) == 0
+
+
 async def test_webhook_validates_provider_and_payload(email_cleanup: list[str]) -> None:
     with TestClient(create_app()) as client:
         unknown = client.post("/api/v1/payments/webhooks/stripe", json={})
@@ -347,6 +438,7 @@ async def test_webhook_validates_provider_and_payload(email_cleanup: list[str]) 
 async def test_release_authorization_state_and_success(email_cleanup: list[str]) -> None:
     with TestClient(create_app()) as client:
         creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Rilis")
+        unrelated_email, _ = await make_creator(client, email_cleanup, "Studio Rilis Tidak Terkait")
         client_email = register(client, email_cleanup, "Klien Rilis")
         booking = request_booking(client, profile_id)
         accept_booking(client, booking["id"], creator_email)
@@ -355,16 +447,23 @@ async def test_release_authorization_state_and_success(email_cleanup: list[str])
         client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
         client_forbidden = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
         logout(client)
-        register(client, email_cleanup, "Kreator Tak Terkait")
-        unrelated = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
-        logout(client)
         login(client, creator_email)
         before_completed = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
         await set_booking_completed(booking["id"])
+        logout(client)
+        login(client, unrelated_email)
+        unrelated = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
+        state_after_unrelated = await payment_state(payment["id"])
+        events_after_unrelated = await payment_event_count(payment["id"])
+        logout(client)
+        login(client, creator_email)
         released = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
         replay = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
 
     assert client_forbidden.status_code == unrelated.status_code == 404
+    assert unrelated.json()["error"]["code"] == "NOT_FOUND"
+    assert state_after_unrelated == ("held", None)
+    assert events_after_unrelated == 1
     assert before_completed.status_code == 409
     assert before_completed.json()["error"]["code"] == "INVALID_PAYMENT_TRANSITION"
     assert released.status_code == replay.status_code == 200

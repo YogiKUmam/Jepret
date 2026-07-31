@@ -165,14 +165,24 @@ async def _locked_payment_and_booking(
     return payment, booking
 
 
-async def _event_was_processed(db: AsyncSession, *, provider: str, provider_event_id: str) -> bool:
-    event_id = await db.scalar(
-        select(PaymentEventModel.id).where(
+async def _payment_id_for_event(
+    db: AsyncSession, *, provider: str, provider_event_id: str
+) -> uuid.UUID | None:
+    result = await db.scalars(
+        select(PaymentEventModel.payment_id).where(
             PaymentEventModel.provider == provider,
             PaymentEventModel.provider_event_id == provider_event_id,
         )
     )
-    return event_id is not None
+    return result.one_or_none()
+
+
+def _event_collision() -> DomainError:
+    return DomainError(
+        "INVALID_PAYMENT_TRANSITION",
+        "Event pembayaran sudah digunakan untuk pembayaran lain.",
+        status_code=409,
+    )
 
 
 def _apply_transition(
@@ -215,6 +225,7 @@ async def _apply_provider_event(
     required_role: str | None = None,
 ) -> Payment:
     payment, booking = await _locked_payment_and_booking(db, payment_id)
+    provider = payment.provider
     if required_role == "client" and (user is None or booking.client_id != user.id):
         raise _not_found()
     if required_role == "creator":
@@ -222,9 +233,12 @@ async def _apply_provider_event(
         if profile is None or booking.creator_profile_id != profile.id:
             raise _not_found()
 
-    if await _event_was_processed(
-        db, provider=payment.provider, provider_event_id=event.provider_event_id
-    ):
+    event_payment_id = await _payment_id_for_event(
+        db, provider=provider, provider_event_id=event.provider_event_id
+    )
+    if event_payment_id is not None:
+        if event_payment_id != payment.id:
+            raise _event_collision()
         current = await _payment_by_id(db, payment.id)
         assert current is not None
         return current
@@ -233,7 +247,7 @@ async def _apply_provider_event(
     db.add(
         PaymentEventModel(
             payment_id=payment.id,
-            provider=payment.provider,
+            provider=provider,
             provider_event_id=event.provider_event_id,
             event_type=event.event_type,
         )
@@ -242,6 +256,15 @@ async def _apply_provider_event(
         await db.commit()
     except IntegrityError:
         await db.rollback()
+        event_payment_id = await _payment_id_for_event(
+            db,
+            provider=provider,
+            provider_event_id=event.provider_event_id,
+        )
+        if event_payment_id is None:
+            raise
+        if event_payment_id != payment_id:
+            raise _event_collision() from None
         current = await _payment_by_id(db, payment_id)
         if current is None:
             raise _not_found() from None
