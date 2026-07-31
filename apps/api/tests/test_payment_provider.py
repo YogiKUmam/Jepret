@@ -22,9 +22,14 @@ async def test_create_payment_returns_deterministic_reference() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_payment_rejects_non_positive_amount() -> None:
+@pytest.mark.parametrize(
+    "amount",
+    [0, -1, True, 1.5, -1.5],
+    ids=["zero", "negative-integer", "boolean", "positive-float", "negative-float"],
+)
+async def test_create_payment_rejects_invalid_amount(amount: object) -> None:
     with pytest.raises(ValueError):
-        await provider().create_payment(payment_id=uuid4(), amount_idr=0)
+        await provider().create_payment(payment_id=uuid4(), amount_idr=cast(int, amount))
 
 
 @pytest.mark.asyncio
@@ -37,9 +42,20 @@ async def test_get_payment_status_returns_pending_for_mock_reference() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_payment_status_rejects_non_mock_reference() -> None:
+@pytest.mark.parametrize(
+    "provider_reference",
+    [
+        "mock-",
+        "mock-   ",
+        "mock-not-a-uuid",
+        " mock-11111111-1111-1111-1111-111111111111",
+        "mock-11111111-1111-1111-1111-111111111111 ",
+        "external-11111111-1111-1111-1111-111111111111",
+    ],
+)
+async def test_get_payment_status_rejects_malformed_reference(provider_reference: str) -> None:
     with pytest.raises(ValueError):
-        await provider().get_payment_status("external-reference")
+        await provider().get_payment_status(provider_reference)
 
 
 @pytest.mark.asyncio
