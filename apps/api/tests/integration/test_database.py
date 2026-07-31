@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from sqlalchemy import text
 
@@ -54,6 +56,32 @@ async def test_payment_schema_and_active_booking_states_are_enforced() -> None:
                 """
             )
         )
+        old_accepted_date_index = await connection.scalar(
+            text(
+                """
+                SELECT indexdef
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = 'uq_bookings_accepted_date'
+                """
+            )
+        )
+        payment_event_lengths = dict(
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT column_name, character_maximum_length
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'payment_events'
+                          AND column_name IN ('provider_event_id', 'event_type')
+                        """
+                    )
+                )
+            )
+            .tuples()
+            .all()
+        )
         payment_checks = " ".join(
             (
                 await connection.execute(
@@ -75,9 +103,9 @@ async def test_payment_schema_and_active_booking_states_are_enforced() -> None:
         "provider",
         "provider_reference",
         "idempotency_key",
-        "amount",
-        "platform_fee",
-        "creator_net",
+        "amount_idr",
+        "platform_fee_idr",
+        "creator_net_idr",
         "status",
         "paid_at",
         "held_at",
@@ -88,6 +116,7 @@ async def test_payment_schema_and_active_booking_states_are_enforced() -> None:
         "updated_at",
     }
     assert payment_event_unique == "UNIQUE (provider, provider_event_id)"
+    assert payment_event_lengths == {"provider_event_id": 150, "event_type": 50}
     assert booking_status_check is not None
     for status in (
         "requested",
@@ -100,9 +129,16 @@ async def test_payment_schema_and_active_booking_states_are_enforced() -> None:
     ):
         assert status in booking_status_check
     assert active_date_index is not None
-    for status in ("accepted", "awaiting_payment", "confirmed"):
-        assert status in active_date_index
-    assert "amount > 0" in payment_checks
-    assert "platform_fee >= 0" in payment_checks
-    assert "creator_net >= 0" in payment_checks
-    assert "amount = (platform_fee + creator_net)" in payment_checks
+    assert active_date_index.startswith("CREATE UNIQUE INDEX")
+    index_predicate = active_date_index.partition(" WHERE ")[2]
+    assert "(status)::text = ANY" in index_predicate
+    assert set(re.findall(r"'([^']+)'", index_predicate)) == {
+        "accepted",
+        "awaiting_payment",
+        "confirmed",
+    }
+    assert old_accepted_date_index is None
+    assert "amount_idr > 0" in payment_checks
+    assert "platform_fee_idr >= 0" in payment_checks
+    assert "creator_net_idr >= 0" in payment_checks
+    assert "amount_idr = (platform_fee_idr + creator_net_idr)" in payment_checks

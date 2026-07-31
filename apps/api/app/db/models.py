@@ -170,11 +170,11 @@ class Payment(TimestampMixin, Base):
             ("status IN ('pending', 'paid', 'held', 'released', 'refunded', 'failed', 'expired')"),
             name="ck_payment_status_valid",
         ),
-        CheckConstraint("amount > 0", name="ck_payment_amount_positive"),
-        CheckConstraint("platform_fee >= 0", name="ck_payment_platform_fee_non_negative"),
-        CheckConstraint("creator_net >= 0", name="ck_payment_creator_net_non_negative"),
+        CheckConstraint("amount_idr > 0", name="ck_payment_amount_positive"),
+        CheckConstraint("platform_fee_idr >= 0", name="ck_payment_platform_fee_non_negative"),
+        CheckConstraint("creator_net_idr >= 0", name="ck_payment_creator_net_non_negative"),
         CheckConstraint(
-            "amount = platform_fee + creator_net",
+            "amount_idr = platform_fee_idr + creator_net_idr",
             name="ck_payment_amount_parts_match",
         ),
     )
@@ -186,9 +186,9 @@ class Payment(TimestampMixin, Base):
     provider: Mapped[str] = mapped_column(String(20), nullable=False)
     provider_reference: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    platform_fee: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    creator_net: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    amount_idr: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    platform_fee_idr: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    creator_net_idr: Mapped[int] = mapped_column(BigInteger, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     held_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -217,8 +217,8 @@ class PaymentEvent(Base):
         ForeignKey("payments.id", ondelete="CASCADE"), nullable=False
     )
     provider: Mapped[str] = mapped_column(String(20), nullable=False)
-    provider_event_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    provider_event_id: Mapped[str] = mapped_column(String(150), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     processed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
