@@ -1,6 +1,8 @@
 import asyncio
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,7 +11,15 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import get_settings
 from app.db.models import Payment, PaymentEvent, User
+from app.integrations.payments import (
+    MockPaymentProvider,
+    PaymentEventType,
+)
+from app.integrations.payments import (
+    PaymentEvent as ProviderPaymentEvent,
+)
 from app.main import create_app
+from app.services import payments as payment_service
 from tests.conftest import fresh_connection, unique_email
 
 pytestmark = pytest.mark.integration
@@ -23,6 +33,29 @@ INTERNAL_PAYMENT_FIELDS = {
     "provider_event_id",
     "event_type",
 }
+
+
+class RecordingReleaseProvider(MockPaymentProvider):
+    def __init__(self) -> None:
+        self.release_calls = 0
+
+    async def release_payment(self, payment_id: uuid.UUID) -> ProviderPaymentEvent:
+        self.release_calls += 1
+        return await super().release_payment(payment_id)
+
+
+class InvalidEventProvider(MockPaymentProvider):
+    async def handle_webhook(
+        self,
+        *,
+        payload: Mapping[str, object],
+        headers: Mapping[str, str],
+    ) -> ProviderPaymentEvent:
+        del payload, headers
+        return ProviderPaymentEvent(
+            provider_event_id="invalid-runtime-event",
+            event_type=cast(PaymentEventType, "unsupported"),
+        )
 
 
 def future_date(days: int = 30) -> str:
@@ -435,7 +468,86 @@ async def test_webhook_validates_provider_and_payload(email_cleanup: list[str]) 
     assert malformed.json()["error"]["code"] == "REQUEST_VALIDATION_FAILED"
 
 
-async def test_release_authorization_state_and_success(email_cleanup: list[str]) -> None:
+async def test_webhook_event_id_normalizes_and_enforces_database_boundary(
+    email_cleanup: list[str],
+) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Batas Event")
+        client_email = register(client, email_cleanup, "Klien Batas Event")
+        first = request_booking(client, profile_id, days=71)
+        second = request_booking(client, profile_id, days=72)
+        accept_booking(client, first["id"], creator_email)
+        login(client, client_email)
+        accept_booking(client, second["id"], creator_email)
+        login(client, client_email)
+        first_payment = create_payment(client, first["id"], str(uuid.uuid4())).json()["data"]
+        second_payment = create_payment(client, second["id"], str(uuid.uuid4())).json()["data"]
+
+        accepted = client.post(
+            "/api/v1/payments/webhooks/mock",
+            json={
+                "payment_id": first_payment["id"],
+                "event_id": f"  {'a' * 150}  ",
+                "event_type": "paid",
+            },
+        )
+        rejected = client.post(
+            "/api/v1/payments/webhooks/mock",
+            json={
+                "payment_id": second_payment["id"],
+                "event_id": "b" * 151,
+                "event_type": "paid",
+            },
+        )
+        second_after = client.get(f"/api/v1/bookings/{second['id']}/payments")
+        second_booking_after = client.get(f"/api/v1/bookings/{second['id']}")
+
+    assert accepted.status_code == 200
+    assert rejected.status_code == 422
+    assert rejected.json()["error"]["code"] == "REQUEST_VALIDATION_FAILED"
+    assert second_after.json()["data"]["status"] == "pending"
+    assert second_booking_after.json()["data"]["status"] == "awaiting_payment"
+    assert await payment_event_count(first_payment["id"]) == 1
+    assert await payment_event_count(second_payment["id"]) == 0
+
+
+async def test_runtime_invalid_provider_event_is_rejected_without_mutation(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(payment_service, "PROVIDER", InvalidEventProvider())
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(
+            client, email_cleanup, "Studio Event Runtime"
+        )
+        client_email = register(client, email_cleanup, "Klien Event Runtime")
+        booking = request_booking(client, profile_id)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+
+        rejected = client.post(
+            "/api/v1/payments/webhooks/mock",
+            json={
+                "payment_id": payment["id"],
+                "event_id": "ignored-valid-input",
+                "event_type": "paid",
+            },
+        )
+        payment_after = client.get(f"/api/v1/bookings/{booking['id']}/payments")
+        booking_after = client.get(f"/api/v1/bookings/{booking['id']}")
+
+    assert rejected.status_code == 409
+    assert rejected.json()["error"]["code"] == "INVALID_PAYMENT_TRANSITION"
+    assert payment_after.json()["data"]["status"] == "pending"
+    assert booking_after.json()["data"]["status"] == "awaiting_payment"
+    assert await payment_event_count(payment["id"]) == 0
+
+
+async def test_release_authorization_state_and_success(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = RecordingReleaseProvider()
+    monkeypatch.setattr(payment_service, "PROVIDER", provider)
     with TestClient(create_app()) as client:
         creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Rilis")
         unrelated_email, _ = await make_creator(client, email_cleanup, "Studio Rilis Tidak Terkait")
@@ -446,21 +558,26 @@ async def test_release_authorization_state_and_success(email_cleanup: list[str])
         payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
         client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
         client_forbidden = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
+        calls_after_client = provider.release_calls
         logout(client)
         login(client, creator_email)
         before_completed = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
+        calls_before_completed = provider.release_calls
         await set_booking_completed(booking["id"])
         logout(client)
         login(client, unrelated_email)
         unrelated = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
         state_after_unrelated = await payment_state(payment["id"])
         events_after_unrelated = await payment_event_count(payment["id"])
+        calls_after_unrelated = provider.release_calls
         logout(client)
         login(client, creator_email)
         released = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
         replay = client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-release")
+        calls_after_success_and_replay = provider.release_calls
 
     assert client_forbidden.status_code == unrelated.status_code == 404
+    assert calls_after_client == calls_before_completed == calls_after_unrelated == 0
     assert unrelated.json()["error"]["code"] == "NOT_FOUND"
     assert state_after_unrelated == ("held", None)
     assert events_after_unrelated == 1
@@ -469,6 +586,7 @@ async def test_release_authorization_state_and_success(email_cleanup: list[str])
     assert released.status_code == replay.status_code == 200
     assert released.json()["data"]["status"] == "released"
     assert released.json()["data"]["released_at"] is not None
+    assert calls_after_success_and_replay == 1
     assert await payment_event_count(payment["id"]) == 2
 
 

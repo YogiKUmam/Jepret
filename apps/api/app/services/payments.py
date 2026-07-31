@@ -214,32 +214,40 @@ def _apply_transition(
             raise _invalid_transition()
         payment.status = "released"
         payment.released_at = now
+    else:
+        raise _invalid_transition()
 
 
-async def _apply_provider_event(
+def _normalize_provider_event(event: ProviderPaymentEvent) -> ProviderPaymentEvent:
+    if event.event_type not in {"paid", "failed", "refunded", "released"}:
+        raise _invalid_transition()
+    provider_event_id = event.provider_event_id.strip()
+    if not provider_event_id or len(provider_event_id) > 150:
+        raise _invalid_transition()
+    return ProviderPaymentEvent(
+        provider_event_id=provider_event_id,
+        event_type=event.event_type,
+    )
+
+
+async def _persist_locked_provider_event(
     db: AsyncSession,
     *,
-    payment_id: uuid.UUID,
+    payment: Payment,
+    booking: Booking,
     event: ProviderPaymentEvent,
-    user: User | None = None,
-    required_role: str | None = None,
 ) -> Payment:
-    payment, booking = await _locked_payment_and_booking(db, payment_id)
+    event = _normalize_provider_event(event)
     provider = payment.provider
-    if required_role == "client" and (user is None or booking.client_id != user.id):
-        raise _not_found()
-    if required_role == "creator":
-        profile = None if user is None else await _creator_profile_of(db, user)
-        if profile is None or booking.creator_profile_id != profile.id:
-            raise _not_found()
+    payment_id = payment.id
 
     event_payment_id = await _payment_id_for_event(
         db, provider=provider, provider_event_id=event.provider_event_id
     )
     if event_payment_id is not None:
-        if event_payment_id != payment.id:
+        if event_payment_id != payment_id:
             raise _event_collision()
-        current = await _payment_by_id(db, payment.id)
+        current = await _payment_by_id(db, payment_id)
         assert current is not None
         return current
 
@@ -274,6 +282,29 @@ async def _apply_provider_event(
     return current
 
 
+async def _apply_provider_event(
+    db: AsyncSession,
+    *,
+    payment_id: uuid.UUID,
+    event: ProviderPaymentEvent,
+    user: User | None = None,
+    required_role: str | None = None,
+) -> Payment:
+    payment, booking = await _locked_payment_and_booking(db, payment_id)
+    if required_role == "client" and (user is None or booking.client_id != user.id):
+        raise _not_found()
+    if required_role == "creator":
+        profile = None if user is None else await _creator_profile_of(db, user)
+        if profile is None or booking.creator_profile_id != profile.id:
+            raise _not_found()
+    return await _persist_locked_provider_event(
+        db,
+        payment=payment,
+        booking=booking,
+        event=event,
+    )
+
+
 async def apply_webhook(
     db: AsyncSession,
     *,
@@ -295,11 +326,20 @@ async def simulate_paid(db: AsyncSession, *, payment_id: uuid.UUID, user: User) 
 
 
 async def simulate_release(db: AsyncSession, *, payment_id: uuid.UUID, user: User) -> Payment:
+    payment, booking = await _locked_payment_and_booking(db, payment_id)
+    profile = await _creator_profile_of(db, user)
+    if profile is None or booking.creator_profile_id != profile.id:
+        raise _not_found()
+    if payment.status == "released":
+        return payment
+    if payment.status in FINAL_PAYMENT_STATUSES:
+        raise _already_final()
+    if payment.status != "held" or booking.status != "completed":
+        raise _invalid_transition()
     event = await PROVIDER.release_payment(payment_id)
-    return await _apply_provider_event(
+    return await _persist_locked_provider_event(
         db,
-        payment_id=payment_id,
+        payment=payment,
+        booking=booking,
         event=event,
-        user=user,
-        required_role="creator",
     )

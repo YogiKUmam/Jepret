@@ -170,3 +170,11 @@ class MockPaymentWebhookRequest(BaseModel):
         if value != str(parsed):
             raise ValueError("payment_id must be a canonical UUID")
         return value
+
+    @field_validator("event_id")
+    @classmethod
+    def normalize_event_id(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized or len(normalized) > 150:
+            raise ValueError("event_id must contain between 1 and 150 characters")
+        return normalized
