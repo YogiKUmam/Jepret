@@ -10,7 +10,8 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import get_settings
-from app.db.models import Payment, PaymentEvent, User
+from app.core.errors import DomainError
+from app.db.models import Booking, Payment, PaymentEvent, User
 from app.integrations.payments import (
     MockPaymentProvider,
     PaymentEventType,
@@ -20,6 +21,7 @@ from app.integrations.payments import (
 )
 from app.main import create_app
 from app.services import payments as payment_service
+from app.services.bookings import cancel_booking as service_cancel_booking
 from tests.conftest import fresh_connection, unique_email
 
 pytestmark = pytest.mark.integration
@@ -42,6 +44,18 @@ class RecordingReleaseProvider(MockPaymentProvider):
     async def release_payment(self, payment_id: uuid.UUID) -> ProviderPaymentEvent:
         self.release_calls += 1
         return await super().release_payment(payment_id)
+
+
+class RecordingRefundProvider(MockPaymentProvider):
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.refund_calls = 0
+
+    async def refund_payment(self, payment_id: uuid.UUID) -> ProviderPaymentEvent:
+        self.refund_calls += 1
+        if self.fail:
+            raise RuntimeError("provider refund failed")
+        return await super().refund_payment(payment_id)
 
 
 class InvalidEventProvider(MockPaymentProvider):
@@ -155,6 +169,35 @@ async def payment_state(payment_id: str) -> tuple[str, datetime | None]:
             )
         ).one()
     return row.status, row.released_at
+
+
+async def booking_payment_state(
+    booking_id: str, payment_id: str
+) -> tuple[str, datetime | None, str, datetime | None]:
+    async with fresh_connection() as connection:
+        row = (
+            await connection.execute(
+                select(
+                    Booking.status,
+                    Booking.cancelled_at,
+                    Payment.status,
+                    Payment.refunded_at,
+                )
+                .join(Payment, Payment.booking_id == Booking.id)
+                .where(
+                    Booking.id == uuid.UUID(booking_id),
+                    Payment.id == uuid.UUID(payment_id),
+                )
+            )
+        ).one()
+    return row[0], row[1], row[2], row[3]
+
+
+async def booking_completed_at(booking_id: str) -> datetime | None:
+    async with fresh_connection() as connection:
+        return await connection.scalar(
+            select(Booking.completed_at).where(Booking.id == uuid.UUID(booking_id))
+        )
 
 
 async def set_booking_completed(booking_id: str) -> None:
@@ -652,3 +695,238 @@ async def test_concurrent_create_produces_one_payment(email_cleanup: list[str]) 
 
     assert payment_ids[0] == payment_ids[1]
     assert count == 1
+
+
+async def test_confirmed_booking_completes_only_with_held_payment(
+    email_cleanup: list[str],
+) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Selesai")
+        client_email = register(client, email_cleanup, "Klien Selesai")
+        booking = request_booking(client, profile_id, days=81)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        assert client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid").status_code == 200
+        logout(client)
+        login(client, creator_email)
+        completed = client.post(f"/api/v1/bookings/{booking['id']}/complete")
+
+    assert completed.status_code == 200
+    assert completed.json()["data"]["status"] == "completed"
+    assert await booking_completed_at(booking["id"]) is not None
+    assert (await booking_payment_state(booking["id"], payment["id"]))[2] == "held"
+
+
+async def test_awaiting_payment_cancellation_expires_pending_payment_atomically(
+    email_cleanup: list[str],
+) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Kedaluwarsa")
+        client_email = register(client, email_cleanup, "Klien Kedaluwarsa")
+        booking = request_booking(client, profile_id, days=82)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        cancelled = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
+
+    state = await booking_payment_state(booking["id"], payment["id"])
+    assert cancelled.status_code == 200
+    assert state[0] == "cancelled" and state[1] is not None
+    assert state[2] == "expired" and state[3] is None
+    assert await payment_event_count(payment["id"]) == 0
+
+
+async def test_confirmed_cancellation_refunds_held_payment_once(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = RecordingRefundProvider()
+    monkeypatch.setattr(payment_service, "PROVIDER", provider)
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Refund")
+        client_email = register(client, email_cleanup, "Klien Refund")
+        booking = request_booking(client, profile_id, days=83)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
+        cancelled = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
+        replay = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
+
+    state = await booking_payment_state(booking["id"], payment["id"])
+    assert cancelled.status_code == 200
+    assert replay.status_code == 409
+    assert replay.json()["error"]["code"] == "INVALID_STATUS_TRANSITION"
+    assert state[0] == "cancelled" and state[1] is not None
+    assert state[2] == "refunded" and state[3] is not None
+    assert provider.refund_calls == 1
+    assert await payment_event_count(payment["id"]) == 2
+
+
+async def test_refund_provider_failure_rolls_back_booking_payment_and_event(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = RecordingRefundProvider(fail=True)
+    monkeypatch.setattr(payment_service, "PROVIDER", provider)
+    with TestClient(create_app(), raise_server_exceptions=False) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Refund Gagal")
+        client_email = register(client, email_cleanup, "Klien Refund Gagal")
+        booking = request_booking(client, profile_id, days=84)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
+        failed = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
+
+    state = await booking_payment_state(booking["id"], payment["id"])
+    assert failed.status_code == 500
+    assert state == ("confirmed", None, "held", None)
+    assert provider.refund_calls == 1
+    assert await payment_event_count(payment["id"]) == 1
+
+
+async def test_unauthorized_confirmed_cancellation_never_calls_provider(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = RecordingRefundProvider()
+    monkeypatch.setattr(payment_service, "PROVIDER", provider)
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Aman Refund")
+        client_email = register(client, email_cleanup, "Klien Aman Refund")
+        booking = request_booking(client, profile_id, days=85)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
+        logout(client)
+        register(client, email_cleanup, "Orang Asing Refund")
+        rejected = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
+
+    assert rejected.status_code == 404
+    assert provider.refund_calls == 0
+    assert await booking_payment_state(booking["id"], payment["id"]) == (
+        "confirmed",
+        None,
+        "held",
+        None,
+    )
+
+
+async def test_completion_rejects_confirmed_booking_without_held_payment(
+    email_cleanup: list[str],
+) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Rusak")
+        client_email = register(client, email_cleanup, "Klien Rusak")
+        booking = request_booking(client, profile_id, days=86)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        async with fresh_connection() as connection:
+            await connection.execute(
+                text("UPDATE bookings SET status = 'confirmed' WHERE id = :id"),
+                {"id": booking["id"]},
+            )
+        logout(client)
+        login(client, creator_email)
+        rejected = client.post(f"/api/v1/bookings/{booking['id']}/complete")
+
+    assert rejected.status_code == 409
+    assert rejected.json()["error"]["code"] == "INVALID_PAYMENT_TRANSITION"
+    assert await booking_payment_state(booking["id"], payment["id"]) == (
+        "confirmed",
+        None,
+        "pending",
+        None,
+    )
+
+
+async def test_completed_booking_cannot_be_cancelled(email_cleanup: list[str]) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Final")
+        client_email = register(client, email_cleanup, "Klien Final")
+        booking = request_booking(client, profile_id, days=87)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
+        logout(client)
+        login(client, creator_email)
+        client.post(f"/api/v1/bookings/{booking['id']}/complete")
+        rejected = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
+
+    assert rejected.status_code == 409
+    assert rejected.json()["error"]["code"] == "INVALID_STATUS_TRANSITION"
+    state = await booking_payment_state(booking["id"], payment["id"])
+    assert state[0] == "completed" and state[2] == "held"
+
+
+async def test_confirmed_booking_still_blocks_creator_date(email_cleanup: list[str]) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(
+            client, email_cleanup, "Studio Tanggal Aktif"
+        )
+        first_client = register(client, email_cleanup, "Klien Tanggal Pertama")
+        first = request_booking(client, profile_id, days=88)
+        logout(client)
+        register(client, email_cleanup, "Klien Tanggal Kedua")
+        second = request_booking(client, profile_id, days=88)
+        logout(client)
+        login(client, creator_email)
+        assert client.post(f"/api/v1/bookings/{first['id']}/accept").status_code == 200
+        logout(client)
+        login(client, first_client)
+        payment = create_payment(client, first["id"], str(uuid.uuid4())).json()["data"]
+        client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
+        logout(client)
+        login(client, creator_email)
+        clash = client.post(f"/api/v1/bookings/{second['id']}/accept")
+
+    assert clash.status_code == 409
+    assert clash.json()["error"]["code"] == "DATE_UNAVAILABLE"
+
+
+async def test_concurrent_confirmed_cancellation_terminates_and_refunds_once(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = RecordingRefundProvider()
+    monkeypatch.setattr(payment_service, "PROVIDER", provider)
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(
+            client, email_cleanup, "Studio Konkuren Refund"
+        )
+        client_email = register(client, email_cleanup, "Klien Konkuren Refund")
+        booking = request_booking(client, profile_id, days=89)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
+
+    engine = create_async_engine(get_settings().database_url, poolclass=None)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    barrier = asyncio.Barrier(2)
+
+    async def worker() -> str:
+        async with factory() as session:
+            user = await session.scalar(select(User).where(User.email == client_email))
+            assert user is not None
+            await barrier.wait()
+            try:
+                result = await service_cancel_booking(
+                    session, booking_id=uuid.UUID(booking["id"]), user=user
+                )
+                return result.status
+            except DomainError as error:
+                await session.rollback()
+                return error.code
+
+    try:
+        first_task = asyncio.create_task(worker())
+        second_task = asyncio.create_task(worker())
+        outcomes = await asyncio.wait_for(asyncio.gather(first_task, second_task), timeout=10)
+    finally:
+        await engine.dispose()
+
+    assert sorted(outcomes) == ["INVALID_STATUS_TRANSITION", "cancelled"]
+    assert provider.refund_calls == 1
+    assert await payment_event_count(payment["id"]) == 2

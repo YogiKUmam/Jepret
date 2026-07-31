@@ -29,9 +29,7 @@ def register(client: TestClient, email_cleanup: list[str], name: str) -> str:
 
 
 def login(client: TestClient, email: str) -> None:
-    response = client.post(
-        "/api/v1/auth/login", json={"email": email, "password": PASSWORD}
-    )
+    response = client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
     assert response.status_code == 200, response.text
 
 
@@ -146,7 +144,9 @@ async def test_request_validation_rules(email_cleanup: list[str]) -> None:
     assert self_booking.json()["error"]["code"] == "CANNOT_BOOK_SELF"
 
 
-async def test_creator_accepts_then_completes(email_cleanup: list[str]) -> None:
+async def test_creator_cannot_complete_accepted_booking_before_payment(
+    email_cleanup: list[str],
+) -> None:
     with TestClient(create_app()) as client:
         creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Terima")
         client_email = register(client, email_cleanup, "Klien Terima")
@@ -167,8 +167,9 @@ async def test_creator_accepts_then_completes(email_cleanup: list[str]) -> None:
     assert accepted.json()["data"]["status"] == "accepted"
     assert double_accept.status_code == 409
     assert double_accept.json()["error"]["code"] == "INVALID_STATUS_TRANSITION"
-    assert completed.json()["data"]["status"] == "completed"
-    assert seen_by_client.json()["data"]["status"] == "completed"
+    assert completed.status_code == 409
+    assert completed.json()["error"]["code"] == "INVALID_STATUS_TRANSITION"
+    assert seen_by_client.json()["data"]["status"] == "accepted"
 
 
 async def test_accepting_twice_on_the_same_date_is_rejected(

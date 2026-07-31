@@ -9,8 +9,9 @@ from sqlalchemy.orm import selectinload
 
 from app.core.errors import DomainError
 from app.db.models import Booking, CreatorProfile, User
+from app.services import payments as payment_service
 
-ACTIVE_STATUSES = frozenset({"requested", "accepted"})
+ACTIVE_STATUSES = frozenset({"requested", "accepted", "awaiting_payment", "confirmed"})
 _WITH_RELATIONS = (
     selectinload(Booking.creator_profile),
     selectinload(Booking.client),
@@ -153,7 +154,8 @@ async def reject_booking(db: AsyncSession, *, booking_id: uuid.UUID, user: User)
 async def complete_booking(db: AsyncSession, *, booking_id: uuid.UUID, user: User) -> Booking:
     booking = await _locked_booking(db, booking_id)
     await _require_creator(db, booking, user)
-    _require_status(booking, frozenset({"accepted"}))
+    _require_status(booking, frozenset({"confirmed"}))
+    await payment_service.require_held_payment_for_locked_booking(db, booking)
     booking.status = "completed"
     booking.completed_at = datetime.now(UTC)
     await db.commit()
@@ -165,6 +167,7 @@ async def cancel_booking(db: AsyncSession, *, booking_id: uuid.UUID, user: User)
     if booking.client_id != user.id:
         await _require_creator(db, booking, user)
     _require_status(booking, ACTIVE_STATUSES)
+    await payment_service.cancel_for_locked_booking(db, booking)
     booking.status = "cancelled"
     booking.cancelled_at = datetime.now(UTC)
     await db.commit()
