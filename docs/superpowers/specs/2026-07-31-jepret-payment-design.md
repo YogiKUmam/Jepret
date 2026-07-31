@@ -105,7 +105,10 @@ Migration `20260731_0005`:
 
 1. Memperbarui check constraint status booking untuk menerima
    `awaiting_payment` dan `confirmed`.
-2. Membuat tabel `payments`:
+2. Mengganti partial unique index jadwal agar mencakup status `accepted`,
+   `awaiting_payment`, dan `confirmed`. Dengan demikian, perubahan status saat
+   payment dibuat atau berhasil tidak melepaskan perlindungan double booking.
+3. Membuat tabel `payments`:
 
 | Kolom | Tipe | Aturan |
 | --- | --- | --- |
@@ -134,7 +137,7 @@ platform_fee_idr = amount_idr * 10 // 100
 creator_net_idr = amount_idr - platform_fee_idr
 ```
 
-3. Membuat tabel `payment_events`:
+4. Membuat tabel `payment_events`:
 
 | Kolom | Tipe | Aturan |
 | --- | --- | --- |
