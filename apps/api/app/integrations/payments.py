@@ -1,0 +1,67 @@
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Protocol
+from uuid import UUID
+
+
+@dataclass(frozen=True)
+class PaymentEvent:
+    provider_event_id: str
+    event_type: str
+
+
+class PaymentProvider(Protocol):
+    name: str
+
+    async def create_payment(self, *, payment_id: UUID, amount_idr: int) -> str: ...
+
+    async def get_payment_status(self, provider_reference: str) -> str: ...
+
+    async def handle_webhook(
+        self,
+        *,
+        payload: Mapping[str, object],
+        headers: Mapping[str, str],
+    ) -> PaymentEvent: ...
+
+    async def refund_payment(self, payment_id: UUID) -> PaymentEvent: ...
+
+    async def release_payment(self, payment_id: UUID) -> PaymentEvent: ...
+
+
+class MockPaymentProvider:
+    name = "mock"
+
+    async def create_payment(self, *, payment_id: UUID, amount_idr: int) -> str:
+        if amount_idr <= 0:
+            raise ValueError("Payment amount must be positive")
+        return f"mock-{payment_id}"
+
+    async def get_payment_status(self, provider_reference: str) -> str:
+        if not provider_reference.startswith("mock-"):
+            raise ValueError("Invalid mock payment reference")
+        return "pending"
+
+    async def handle_webhook(
+        self,
+        *,
+        payload: Mapping[str, object],
+        headers: Mapping[str, str],
+    ) -> PaymentEvent:
+        del headers
+        event_id = payload.get("event_id")
+        event_type = payload.get("event_type")
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ValueError("Webhook event_id must be a non-empty string")
+        if not isinstance(event_type, str) or event_type not in {"paid", "failed"}:
+            raise ValueError("Webhook event_type must be paid or failed")
+        return PaymentEvent(provider_event_id=event_id.strip(), event_type=event_type)
+
+    async def simulate_paid(self, payment_id: UUID) -> PaymentEvent:
+        return PaymentEvent(provider_event_id=f"mock-paid-{payment_id}", event_type="paid")
+
+    async def refund_payment(self, payment_id: UUID) -> PaymentEvent:
+        return PaymentEvent(provider_event_id=f"mock-refunded-{payment_id}", event_type="refunded")
+
+    async def release_payment(self, payment_id: UUID) -> PaymentEvent:
+        return PaymentEvent(provider_event_id=f"mock-released-{payment_id}", event_type="released")
