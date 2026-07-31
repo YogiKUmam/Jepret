@@ -737,6 +737,36 @@ async def test_awaiting_payment_cancellation_expires_pending_payment_atomically(
     assert await payment_event_count(payment["id"]) == 0
 
 
+async def test_awaiting_payment_cancellation_preserves_failed_payment(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = RecordingRefundProvider()
+    monkeypatch.setattr(payment_service, "PROVIDER", provider)
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(client, email_cleanup, "Studio Bayar Gagal")
+        client_email = register(client, email_cleanup, "Klien Bayar Gagal")
+        booking = request_booking(client, profile_id, days=90)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        failed = client.post(
+            "/api/v1/payments/webhooks/mock",
+            json={
+                "payment_id": payment["id"],
+                "event_id": f"failed-before-cancel-{payment['id']}",
+                "event_type": "failed",
+            },
+        )
+        cancelled = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
+
+    state = await booking_payment_state(booking["id"], payment["id"])
+    assert failed.status_code == cancelled.status_code == 200
+    assert state[0] == "cancelled" and state[1] is not None
+    assert state[2] == "failed" and state[3] is None
+    assert provider.refund_calls == 0
+    assert await payment_event_count(payment["id"]) == 1
+
+
 async def test_confirmed_cancellation_refunds_held_payment_once(
     email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -781,6 +811,43 @@ async def test_refund_provider_failure_rolls_back_booking_payment_and_event(
     state = await booking_payment_state(booking["id"], payment["id"])
     assert failed.status_code == 500
     assert state == ("confirmed", None, "held", None)
+    assert provider.refund_calls == 1
+    assert await payment_event_count(payment["id"]) == 1
+
+
+async def test_refund_event_id_collision_rejects_without_inconsistent_state(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = RecordingRefundProvider()
+    monkeypatch.setattr(payment_service, "PROVIDER", provider)
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(
+            client, email_cleanup, "Studio Collision Refund"
+        )
+        client_email = register(client, email_cleanup, "Klien Collision Refund")
+        booking = request_booking(client, profile_id, days=91)
+        accept_booking(client, booking["id"], creator_email)
+        login(client, client_email)
+        payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
+        paid = client.post(
+            "/api/v1/payments/webhooks/mock",
+            json={
+                "payment_id": payment["id"],
+                "event_id": f"mock-refunded-{payment['id']}",
+                "event_type": "paid",
+            },
+        )
+        rejected = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
+
+    assert paid.status_code == 200
+    assert rejected.status_code == 409
+    assert rejected.json()["error"]["code"] == "INVALID_PAYMENT_TRANSITION"
+    assert await booking_payment_state(booking["id"], payment["id"]) == (
+        "confirmed",
+        None,
+        "held",
+        None,
+    )
     assert provider.refund_calls == 1
     assert await payment_event_count(payment["id"]) == 1
 
@@ -904,13 +971,15 @@ async def test_concurrent_confirmed_cancellation_terminates_and_refunds_once(
 
     engine = create_async_engine(get_settings().database_url, poolclass=None)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    barrier = asyncio.Barrier(2)
+    ready = (asyncio.Event(), asyncio.Event())
+    start = asyncio.Event()
 
-    async def worker() -> str:
+    async def worker(ready_event: asyncio.Event) -> str:
         async with factory() as session:
             user = await session.scalar(select(User).where(User.email == client_email))
             assert user is not None
-            await barrier.wait()
+            ready_event.set()
+            await start.wait()
             try:
                 result = await service_cancel_booking(
                     session, booking_id=uuid.UUID(booking["id"]), user=user
@@ -921,8 +990,10 @@ async def test_concurrent_confirmed_cancellation_terminates_and_refunds_once(
                 return error.code
 
     try:
-        first_task = asyncio.create_task(worker())
-        second_task = asyncio.create_task(worker())
+        first_task = asyncio.create_task(worker(ready[0]))
+        second_task = asyncio.create_task(worker(ready[1]))
+        await asyncio.wait_for(asyncio.gather(ready[0].wait(), ready[1].wait()), timeout=10)
+        start.set()
         outcomes = await asyncio.wait_for(asyncio.gather(first_task, second_task), timeout=10)
     finally:
         await engine.dispose()

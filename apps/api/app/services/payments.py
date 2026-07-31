@@ -335,12 +335,15 @@ async def cancel_for_locked_booking(db: AsyncSession, booking: Booking) -> Payme
         if payment is None or payment.status != "held":
             raise _invalid_transition()
         event = await PROVIDER.refund_payment(payment.id)
-        return await _stage_locked_provider_event(
+        staged_payment = await _stage_locked_provider_event(
             db,
             payment=payment,
             booking=booking,
             event=event,
         )
+        if staged_payment.status != "refunded":
+            raise _invalid_transition()
+        return staged_payment
     raise _invalid_transition()
 
 
