@@ -4,8 +4,8 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import DomainError
 from app.db.models import Booking, CreatorProfile, User
@@ -22,7 +22,8 @@ def _not_found() -> DomainError:
 
 
 async def _creator_profile_of(db: AsyncSession, user: User) -> CreatorProfile | None:
-    return await db.scalar(select(CreatorProfile).where(CreatorProfile.user_id == user.id))
+    result = await db.scalars(select(CreatorProfile).where(CreatorProfile.user_id == user.id))
+    return result.one_or_none()
 
 
 async def create_booking(

@@ -17,7 +17,8 @@ async def update_full_name(db: AsyncSession, *, user: User, full_name: str) -> U
 
 
 async def get_creator_profile(db: AsyncSession, *, user: User) -> CreatorProfile | None:
-    return await db.scalar(select(CreatorProfile).where(CreatorProfile.user_id == user.id))
+    result = await db.scalars(select(CreatorProfile).where(CreatorProfile.user_id == user.id))
+    return result.one_or_none()
 
 
 async def upsert_creator_draft(
