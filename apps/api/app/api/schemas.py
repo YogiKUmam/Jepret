@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 EmailAddress = Annotated[
     str,
@@ -134,3 +134,39 @@ class CreateBookingRequest(BaseModel):
     event_date: date
     event_city: str = Field(min_length=2, max_length=100)
     notes: str = Field(default="", max_length=2000)
+
+
+class PaymentOut(BaseModel):
+    id: uuid.UUID
+    booking_id: uuid.UUID
+    provider: str
+    amount_idr: int
+    platform_fee_idr: int
+    creator_net_idr: int
+    status: str
+    paid_at: datetime | None
+    held_at: datetime | None
+    released_at: datetime | None
+    refunded_at: datetime | None
+    created_at: datetime
+
+
+class PaymentEnvelope(BaseModel):
+    data: PaymentOut
+
+
+class MockPaymentWebhookRequest(BaseModel):
+    payment_id: str
+    event_id: str
+    event_type: str
+
+    @field_validator("payment_id")
+    @classmethod
+    def validate_canonical_payment_id(cls, value: str) -> str:
+        try:
+            parsed = uuid.UUID(value)
+        except ValueError as exc:
+            raise ValueError("payment_id must be a canonical UUID") from exc
+        if value != str(parsed):
+            raise ValueError("payment_id must be a canonical UUID")
+        return value

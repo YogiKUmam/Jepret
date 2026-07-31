@@ -7,6 +7,8 @@ from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.bookings import router as bookings_router
 from app.api.creators import router as creators_router
+from app.api.dev_payments import router as dev_payments_router
+from app.api.payments import router as payments_router
 from app.api.profiles import router as profiles_router
 from app.api.system import router as system_router
 from app.core.errors import install_error_handlers
@@ -38,6 +40,8 @@ def create_app() -> FastAPI:
     app.include_router(profiles_router)
     app.include_router(creators_router)
     app.include_router(bookings_router)
+    app.include_router(payments_router)
+    app.include_router(dev_payments_router)
     app.include_router(admin_router)
     return app
 
