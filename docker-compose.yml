@@ -13,7 +13,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_JEPRET_ENVIRONMENT: ${NEXT_PUBLIC_JEPRET_ENVIRONMENT:-development}
+        NEXT_PUBLIC_JEPRET_ENVIRONMENT: development
     expose: ["3000"]
 
   api:

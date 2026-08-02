@@ -46,6 +46,27 @@ npm --workspace @jepret/web run typecheck
 npm --workspace @jepret/web run build
 ```
 
+## Focused payment suites
+
+Unit test mock provider tidak memerlukan database:
+
+```bash
+uv run --project apps/api pytest apps/api/tests/test_payment_provider.py -q
+```
+
+API payment dan integrasi state booking memerlukan PostgreSQL serta environment
+integration yang dijelaskan pada bagian Backend:
+
+```bash
+uv run --project apps/api pytest apps/api/tests/test_bookings_api.py apps/api/tests/test_payments_api.py -m integration -q
+```
+
+Jalankan seluruh component test web untuk state dan halaman payment:
+
+```bash
+npm --workspace @jepret/web test
+```
+
 ## Contracts
 
 ```bash
@@ -65,6 +86,12 @@ docker compose run --rm migrate
 docker compose run --rm seed
 npm --workspace @jepret/web exec playwright install chromium
 npm --workspace @jepret/web run e2e
+```
+
+Untuk iterasi alur booking/payment saja:
+
+```bash
+npm --workspace @jepret/web run e2e -- booking.spec.ts
 ```
 
 Base URL default `http://localhost:8080` (override dengan `E2E_BASE_URL`). E2E tidak termasuk `npm run verify`; jalankan eksplisit atau lewat CI.

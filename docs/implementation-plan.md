@@ -49,7 +49,22 @@
   accepted-date), 8 endpoint booking, halaman klien & kreator, seed 3 booking
   demo, E2E alur ajukan → terima.
 
-- [ ] Phase 5 — Payment
+- [x] Phase 5 — Payment
+
+  **Bukti verifikasi (2026-08-02, mesin lokal Windows):**
+
+  - Mock payment provider: 27 passed; booking/payment integration: 34 passed
+    dengan 1 warning deprecation upstream Starlette/httpx.
+  - Vitest web: 68 passed pada 12 test files.
+  - E2E Playwright mobile-chromium: 8 passed (foundation, auth, marketplace,
+    booking, payment), termasuk paid → held → completed → released dan paid →
+    cancelled → refunded; focused payment flow 2 passed pada run berulang.
+  - Stack Compose dibangun ulang dan sehat; migration head `20260731_0005`
+    serta seed payment idempoten berhasil dijalankan.
+  - `npm run verify` hijau penuh: format check, lint, mypy (30 source files),
+    tsc, pytest (42 passed, 58 deselected), Vitest (68 passed), contracts check
+    tanpa diff, Next.js build, dan Compose config.
+
 - [ ] Phase 6 — Chat dan deliverables
 - [ ] Phase 7 — Completion, reviews, disputes, admin
 - [ ] Phase 8 — Hardening

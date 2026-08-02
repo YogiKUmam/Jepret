@@ -4,7 +4,10 @@ Marketplace mobile-first untuk menghubungkan klien dengan kreator visual (fotogr
 
 ## Status fase
 
-Phase 1 — Foundation. Seluruh fitur bisnis (auth, marketplace, booking, payment, chat, admin) belum ada dan menyusul pada Phase 2+. Lihat `docs/implementation-plan.md` untuk tracker lengkap.
+Phase 1–5 sudah selesai: foundation, auth dan profiles, marketplace, booking,
+serta payment sandbox. Chat, deliverables, reviews, disputes, dan hardening
+masih mengikuti Phase 6–8. Lihat `docs/implementation-plan.md` untuk bukti
+verifikasi dan tracker lengkap.
 
 ## Arsitektur
 
@@ -44,7 +47,8 @@ Salin `.env.example` menjadi `.env` lalu sesuaikan. Seluruh variable API memakai
 
 ## Migration
 
-Setiap perubahan database memakai Alembic. Baseline kosong: `20260713_0001`.
+Setiap perubahan database memakai Alembic. Baseline kosong adalah
+`20260713_0001`; migration head saat ini `20260731_0005`.
 
 ```bash
 docker compose run --rm migrate                          # via Docker
@@ -86,6 +90,24 @@ docker compose run --rm seed
 
 Kreator demo sudah berstatus terverifikasi (Studio Cahaya). Seed juga membuat 7 kreator terverifikasi tambahan untuk marketplace (`kreator2@jepret.local` s.d. `kreator8@jepret.local`, password `kreator12345`). Kredensial ini hanya untuk pengembangan lokal dan tidak boleh dipakai di lingkungan publik.
 
+## Payment sandbox lokal
+
+Setelah stack di-migrate dan di-seed, alur sandbox dapat dicoba melalui
+`http://localhost:8080`:
+
+1. Masuk sebagai klien, ajukan booking ke Studio Cahaya, lalu keluar.
+2. Masuk sebagai kreator, buka **Booking masuk**, terima booking, lalu keluar.
+3. Masuk kembali sebagai klien, buka **Booking saya** → **Bayar sekarang**,
+   buat pembayaran, lalu pilih **Simulasikan pembayaran berhasil**.
+4. Untuk alur pencairan, masuk sebagai kreator, tandai booking selesai, buka
+   halaman pembayarannya, lalu pilih **Simulasikan pencairan**.
+5. Untuk alur refund, klien dapat membatalkan booking yang dananya masih
+   berstatus held.
+
+Status held (**Dana tercatat aman**) dan released (**Pembayaran telah dilepas**)
+hanya state bisnis yang disimulasikan. Jepret belum menahan, memindahkan, atau
+mencairkan dana nyata.
+
 ## Troubleshooting
 
 - **Port 8080 terpakai** — hentikan proses lain atau ubah mapping `gateway.ports` di `docker-compose.yml`.
@@ -96,8 +118,20 @@ Kreator demo sudah berstatus terverifikasi (Studio Cahaya). Seed juga membuat 7 
 
 ## Security caveats
 
-Kredensial default (`minioadmin`, `jepret`) hanya untuk pengembangan lokal dan tidak boleh dipakai di production. Belum ada authentication; jangan mengekspos stack ini ke jaringan publik. Wildcard `public_origin` ditolak oleh validasi settings.
+Kredensial default (`minioadmin`, `jepret`, dan akun demo) hanya untuk lokal.
+Auth saat ini memakai password hash dan session cookie HttpOnly, SameSite=Lax
+(Secure di production), ditambah pemeriksaan Origin untuk request mutasi.
+Belum tersedia MFA, verifikasi email, password recovery, atau rate limiting.
+
+Payment masih memakai mock provider tanpa dana nyata dan tanpa verifikasi
+signature provider production. Mock webhook dan `/api/v1/dev/payments/*`
+ditolak saat `JEPRET_ENVIRONMENT=production`; frontend simulasi juga tidak
+dibangun oleh konfigurasi production. Jangan mengekspos stack Compose lokal ke
+jaringan publik atau memakai mock provider untuk transaksi nyata.
 
 ## Deployment notes
 
-Production deployment tidak dilakukan pada Phase 1. Kebutuhan masa depan didokumentasikan di `docs/deployment.md`.
+Production deployment belum menjadi bagian Phase 1–5. Sebelum production,
+siapkan secret terkelola, HTTPS, rate limiting, observability, backup, dan
+provider payment nyata dengan webhook terautentikasi. Kebutuhan selengkapnya
+didokumentasikan di `docs/deployment.md`.
