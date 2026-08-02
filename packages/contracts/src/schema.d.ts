@@ -616,6 +616,15 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** MockPaymentWebhookRequest */
+        MockPaymentWebhookRequest: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** Payment Id */
+            payment_id: string;
+        };
         /** PaymentEnvelope */
         PaymentEnvelope: {
             data: components["schemas"]["PaymentOut"];
@@ -1330,7 +1339,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MockPaymentWebhookRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

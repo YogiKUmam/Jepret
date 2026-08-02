@@ -449,6 +449,29 @@
         "title": "MessageEnvelope",
         "type": "object"
       },
+      "MockPaymentWebhookRequest": {
+        "properties": {
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "payment_id": {
+            "title": "Payment Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_id",
+          "event_id",
+          "event_type"
+        ],
+        "title": "MockPaymentWebhookRequest",
+        "type": "object"
+      },
       "PaymentEnvelope": {
         "properties": {
           "data": {
@@ -1624,6 +1647,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MockPaymentWebhookRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {

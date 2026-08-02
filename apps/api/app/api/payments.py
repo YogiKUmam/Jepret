@@ -1,7 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Header, Request, Response, status
-from pydantic import ValidationError
+from fastapi import APIRouter, Depends, Header, Request, Response, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.api.schemas import MockPaymentWebhookRequest, PaymentEnvelope, PaymentOut
@@ -11,6 +10,18 @@ from app.db.models import Payment
 from app.services import payments as payment_service
 
 router = APIRouter(tags=["payments"])
+
+
+def _require_mock_webhook_provider(provider: str) -> str:
+    if provider != payment_service.PROVIDER.name:
+        raise DomainError("NOT_FOUND", "Provider pembayaran tidak ditemukan.", 404)
+    if get_settings().environment == Environment.PRODUCTION:
+        raise DomainError(
+            "DEV_ENDPOINT_DISABLED",
+            "Endpoint pengembangan tidak tersedia.",
+            404,
+        )
+    return provider
 
 
 def _payment_out(payment: Payment) -> PaymentOut:
@@ -89,28 +100,13 @@ async def get_payment(booking_id: uuid.UUID, user: CurrentUser, db: DbSession) -
 @router.post(
     "/api/v1/payments/webhooks/{provider}",
     response_model=PaymentEnvelope,
+    dependencies=[Depends(_require_mock_webhook_provider)],
 )
 async def payment_webhook(
-    provider: str,
+    payload: MockPaymentWebhookRequest,
     request: Request,
     db: DbSession,
 ) -> PaymentEnvelope:
-    if provider != payment_service.PROVIDER.name:
-        raise DomainError("NOT_FOUND", "Provider pembayaran tidak ditemukan.", 404)
-    if get_settings().environment == Environment.PRODUCTION:
-        raise DomainError(
-            "DEV_ENDPOINT_DISABLED",
-            "Endpoint pengembangan tidak tersedia.",
-            404,
-        )
-    try:
-        payload = MockPaymentWebhookRequest.model_validate(await request.json())
-    except (ValueError, ValidationError) as exc:
-        raise DomainError(
-            "REQUEST_VALIDATION_FAILED",
-            "Data permintaan tidak valid.",
-            422,
-        ) from exc
     try:
         event = await payment_service.PROVIDER.handle_webhook(
             payload=payload.model_dump(exclude={"payment_id"}),

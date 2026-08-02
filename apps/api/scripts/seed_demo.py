@@ -1,6 +1,7 @@
 """Seed idempotent demo accounts for local development only."""
 
 import asyncio
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -13,6 +14,13 @@ from app.db.models import Booking, CreatorProfile, Payment, User
 from app.db.session import dispose_engine, get_engine
 
 BASE_REVIEWED_AT = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
+PAYMENT_CREATED_AT = BASE_REVIEWED_AT + timedelta(hours=1)
+PAYMENT_PAID_AT = BASE_REVIEWED_AT + timedelta(days=1)
+PAYMENT_HELD_AT = PAYMENT_PAID_AT + timedelta(minutes=5)
+PAYMENT_RELEASED_AT = BASE_REVIEWED_AT + timedelta(days=2)
+LEGACY_BOOKING_NOTE = "Booking demo."
+DEMO_CLIENT_EMAIL = "klien@jepret.local"
+DEMO_CREATOR_EMAIL = "kreator@jepret.local"
 
 DEMO_USERS = [
     {
@@ -22,7 +30,7 @@ DEMO_USERS = [
         "is_admin": True,
     },
     {
-        "email": "klien@jepret.local",
+        "email": DEMO_CLIENT_EMAIL,
         "password": "klien12345",
         "full_name": "Klien Demo",
         "is_admin": False,
@@ -32,7 +40,7 @@ DEMO_USERS = [
 # reviewed_at berjenjang: indeks lebih besar = di-approve lebih baru = tampil lebih dulu.
 DEMO_CREATORS: list[dict[str, Any]] = [
     {
-        "email": "kreator@jepret.local",
+        "email": DEMO_CREATOR_EMAIL,
         "password": "kreator12345",
         "full_name": "Kreator Demo",
         "profile": {
@@ -147,18 +155,30 @@ async def _upsert_user(db: AsyncSession, entry: dict[str, Any]) -> User:
     return user
 
 
-DEMO_BOOKINGS: list[dict[str, Any]] = [
-    {"days": 30, "status": "requested", "payment_status": None},
-    {"days": 45, "status": "accepted", "payment_status": None},
-    {"days": 60, "status": "awaiting_payment", "payment_status": "pending"},
-    {"days": 75, "status": "confirmed", "payment_status": "held"},
-    {"days": -20, "status": "completed", "payment_status": "released"},
+@dataclass(frozen=True)
+class DemoBooking:
+    scenario: str
+    event_date: date
+    status: str
+    payment_status: str | None
+
+    @property
+    def note(self) -> str:
+        return f"Booking demo [{self.scenario}]."
+
+
+DEMO_BOOKINGS = [
+    DemoBooking("requested", date(2026, 9, 1), "requested", None),
+    DemoBooking("accepted", date(2026, 9, 16), "accepted", None),
+    DemoBooking("awaiting-payment", date(2026, 10, 1), "awaiting_payment", "pending"),
+    DemoBooking("confirmed-held", date(2026, 10, 16), "confirmed", "held"),
+    DemoBooking("completed-released", date(2026, 7, 13), "completed", "released"),
 ]
 
 
 async def _seed_bookings(db: AsyncSession) -> None:
-    client = await db.scalar(select(User).where(User.email == "klien@jepret.local"))
-    creator_user = await db.scalar(select(User).where(User.email == "kreator@jepret.local"))
+    client = await db.scalar(select(User).where(User.email == DEMO_CLIENT_EMAIL))
+    creator_user = await db.scalar(select(User).where(User.email == DEMO_CREATOR_EMAIL))
     if client is None or creator_user is None:
         return
     profile = await db.scalar(
@@ -166,65 +186,104 @@ async def _seed_bookings(db: AsyncSession) -> None:
     )
     if profile is None:
         return
-    today = datetime.now(UTC).date()
+
+    legacy_bookings = list(
+        (
+            await db.scalars(
+                select(Booking).where(
+                    Booking.client_id == client.id,
+                    Booking.creator_profile_id == profile.id,
+                    Booking.notes == LEGACY_BOOKING_NOTE,
+                )
+            )
+        ).all()
+    )
+    for legacy_booking in legacy_bookings:
+        await db.delete(legacy_booking)
+        print(f"removed legacy booking demo {legacy_booking.event_date}")
+    await db.flush()
+
     for entry in DEMO_BOOKINGS:
-        event_date: date = today + timedelta(days=int(entry["days"]))
-        booking = await db.scalar(
+        result = await db.execute(
             select(Booking)
             .options(selectinload(Booking.payment))
             .where(
                 Booking.client_id == client.id,
                 Booking.creator_profile_id == profile.id,
-                Booking.event_date == event_date,
+                Booking.notes == entry.note,
             )
         )
+        booking = result.scalar_one_or_none()
         if booking is None:
             booking = Booking(
                 client_id=client.id,
                 creator_profile_id=profile.id,
-                event_date=event_date,
+                event_date=entry.event_date,
                 event_city=profile.city,
-                notes="Booking demo.",
-                status=str(entry["status"]),
+                notes=entry.note,
+                status=entry.status,
                 quoted_price_idr=profile.starting_price_idr,
                 payment=None,
             )
             db.add(booking)
-            print(f"created booking demo {entry['status']} {event_date}")
+            print(f"created booking demo {entry.status} {entry.event_date}")
+        else:
+            booking.event_date = entry.event_date
+            booking.event_city = profile.city
+            booking.status = entry.status
+            booking.quoted_price_idr = profile.starting_price_idr
 
-        payment_status = entry["payment_status"]
-        if payment_status is None:
+        if entry.payment_status is None:
+            if booking.payment is not None:
+                booking.payment = None
             continue
 
         await db.flush()
-        if booking.payment is not None:
-            print(f"exists  payment demo {payment_status} {event_date}")
-            continue
-
         paid_at = None
         held_at = None
         released_at = None
-        if payment_status in {"held", "released"}:
-            paid_at = BASE_REVIEWED_AT + timedelta(days=1)
-            held_at = paid_at + timedelta(minutes=5)
-        if payment_status == "released":
-            released_at = BASE_REVIEWED_AT + timedelta(days=2)
+        if entry.payment_status in {"held", "released"}:
+            paid_at = PAYMENT_PAID_AT
+            held_at = PAYMENT_HELD_AT
+        if entry.payment_status == "released":
+            released_at = PAYMENT_RELEASED_AT
 
         amount = booking.quoted_price_idr
         fee = amount * 10 // 100
-        booking.payment = Payment(
-            provider="mock",
-            provider_reference=f"mock-{booking.id}",
-            idempotency_key=f"seed-{booking.id}",
-            amount_idr=amount,
-            platform_fee_idr=fee,
-            creator_net_idr=amount - fee,
-            status=str(payment_status),
-            paid_at=paid_at,
-            held_at=held_at,
-            released_at=released_at,
-        )
-        print(f"created payment demo {payment_status} {event_date}")
+        if booking.payment is None:
+            booking.payment = Payment(
+                booking_id=booking.id,
+                provider="mock",
+                provider_reference=f"mock-{booking.id}",
+                idempotency_key=f"seed-{booking.id}",
+                amount_idr=amount,
+                platform_fee_idr=fee,
+                creator_net_idr=amount - fee,
+                status=entry.payment_status,
+                paid_at=paid_at,
+                held_at=held_at,
+                released_at=released_at,
+                created_at=PAYMENT_CREATED_AT,
+                updated_at=released_at or held_at or PAYMENT_CREATED_AT,
+            )
+            print(f"created payment demo {entry.payment_status} {entry.event_date}")
+        else:
+            payment = booking.payment
+            payment.provider = "mock"
+            payment.provider_reference = f"mock-{booking.id}"
+            payment.idempotency_key = f"seed-{booking.id}"
+            payment.amount_idr = amount
+            payment.platform_fee_idr = fee
+            payment.creator_net_idr = amount - fee
+            payment.status = entry.payment_status
+            payment.paid_at = paid_at
+            payment.held_at = held_at
+            payment.released_at = released_at
+            payment.refunded_at = None
+            payment.raw_metadata = None
+            payment.created_at = PAYMENT_CREATED_AT
+            payment.updated_at = released_at or held_at or PAYMENT_CREATED_AT
+            print(f"reconciled payment demo {entry.payment_status} {entry.event_date}")
 
 
 async def seed() -> None:

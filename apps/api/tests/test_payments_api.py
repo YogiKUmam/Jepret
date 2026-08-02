@@ -213,6 +213,18 @@ def create_payment(client: TestClient, booking_id: str, key: str | None = None):
     return client.post(f"/api/v1/bookings/{booking_id}/payments", headers=headers)
 
 
+def test_webhook_openapi_declares_required_typed_body() -> None:
+    schema = create_app().openapi()
+    operation = schema["paths"]["/api/v1/payments/webhooks/{provider}"]["post"]
+    request_body = operation["requestBody"]
+
+    assert request_body["required"] is True
+    body_schema = request_body["content"]["application/json"]["schema"]
+    assert body_schema == {"$ref": "#/components/schemas/MockPaymentWebhookRequest"}
+    webhook_schema = schema["components"]["schemas"]["MockPaymentWebhookRequest"]
+    assert set(webhook_schema["required"]) == {"payment_id", "event_id", "event_type"}
+
+
 async def test_payment_endpoints_require_auth_except_webhook(
     email_cleanup: list[str],
 ) -> None:
