@@ -14,6 +14,8 @@ from app.db.models import Booking, CreatorProfile, Payment, User
 from app.db.session import dispose_engine, get_engine
 
 BASE_REVIEWED_AT = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
+BOOKING_CREATED_AT = BASE_REVIEWED_AT
+BOOKING_UPDATED_AT = BASE_REVIEWED_AT
 PAYMENT_CREATED_AT = BASE_REVIEWED_AT + timedelta(hours=1)
 PAYMENT_PAID_AT = BASE_REVIEWED_AT + timedelta(days=1)
 PAYMENT_HELD_AT = PAYMENT_PAID_AT + timedelta(minutes=5)
@@ -206,7 +208,7 @@ async def _seed_bookings(db: AsyncSession) -> None:
     for entry in DEMO_BOOKINGS:
         result = await db.execute(
             select(Booking)
-            .options(selectinload(Booking.payment))
+            .options(selectinload(Booking.payment).selectinload(Payment.events))
             .where(
                 Booking.client_id == client.id,
                 Booking.creator_profile_id == profile.id,
@@ -224,6 +226,8 @@ async def _seed_bookings(db: AsyncSession) -> None:
                 status=entry.status,
                 quoted_price_idr=profile.starting_price_idr,
                 payment=None,
+                created_at=BOOKING_CREATED_AT,
+                updated_at=BOOKING_UPDATED_AT,
             )
             db.add(booking)
             print(f"created booking demo {entry.status} {entry.event_date}")
@@ -232,6 +236,8 @@ async def _seed_bookings(db: AsyncSession) -> None:
             booking.event_city = profile.city
             booking.status = entry.status
             booking.quoted_price_idr = profile.starting_price_idr
+            booking.created_at = BOOKING_CREATED_AT
+            booking.updated_at = BOOKING_UPDATED_AT
 
         if entry.payment_status is None:
             if booking.payment is not None:
@@ -269,6 +275,7 @@ async def _seed_bookings(db: AsyncSession) -> None:
             print(f"created payment demo {entry.payment_status} {entry.event_date}")
         else:
             payment = booking.payment
+            payment.events.clear()
             payment.provider = "mock"
             payment.provider_reference = f"mock-{booking.id}"
             payment.idempotency_key = f"seed-{booking.id}"
