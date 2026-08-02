@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { useMe } from "@/lib/auth";
 import { useIncomingBookings, useMyBookings } from "@/lib/bookings";
+import { isPaymentSimulationEnabled } from "@/lib/environment";
 import { formatIdr } from "@/lib/format";
 import {
   useCreatePayment,
@@ -47,9 +48,14 @@ function formatEventDate(date: string) {
 
 function LoadingSkeleton() {
   return (
-    <div aria-hidden className="mt-8 space-y-4">
-      <div className="h-8 w-48 animate-pulse rounded-lg bg-[var(--border)]" />
-      <div className="h-28 animate-pulse rounded-2xl bg-[var(--border)]" />
+    <div className="mt-8">
+      <p role="status" aria-live="polite" className="sr-only">
+        Memuat booking…
+      </p>
+      <div aria-hidden className="space-y-4">
+        <div className="h-8 w-48 animate-pulse rounded-lg bg-[var(--border)]" />
+        <div className="h-28 animate-pulse rounded-2xl bg-[var(--border)]" />
+      </div>
     </div>
   );
 }
@@ -88,17 +94,18 @@ function PaymentDetails({
   const simulatePaid = useSimulatePaid(paymentId, booking.id);
   const simulateRelease = useSimulateRelease(paymentId, booking.id);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const simulationEnabled = isPaymentSimulationEnabled();
 
   const notCreated =
     payment.error instanceof ApiError && payment.error.status === 404;
   const canCreate = notCreated && booking.status === "accepted" && !isIncoming;
   const canSimulatePaid =
-    process.env.NODE_ENV !== "production" &&
+    simulationEnabled &&
     payment.data?.status === "pending" &&
     booking.status === "awaiting_payment" &&
     !isIncoming;
   const canSimulateRelease =
-    process.env.NODE_ENV !== "production" &&
+    simulationEnabled &&
     payment.data?.status === "held" &&
     booking.status === "completed" &&
     isIncoming &&
@@ -111,7 +118,11 @@ function PaymentDetails({
     simulateRelease.isPending;
 
   if (payment.isPending) {
-    return <p className="mt-8 text-[var(--muted)]">Memuat pembayaran…</p>;
+    return (
+      <p role="status" aria-live="polite" className="mt-8 text-[var(--muted)]">
+        Memuat pembayaran…
+      </p>
+    );
   }
 
   if (payment.isError && !notCreated) {
@@ -168,7 +179,11 @@ function PaymentDetails({
 
       <div className="border-y border-[var(--border)] py-5">
         <p className="text-sm text-[var(--muted)]">Status</p>
-        <p className="mt-1 text-lg font-medium">
+        <p
+          role="status"
+          aria-live="polite"
+          className="mt-1 text-lg font-medium"
+        >
           {payment.data
             ? PAYMENT_STATUS_LABELS[payment.data.status]
             : "Pembayaran belum dibuat"}

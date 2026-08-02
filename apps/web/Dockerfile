@@ -7,7 +7,8 @@ RUN npm ci
 
 FROM node:24-alpine AS builder
 WORKDIR /repo
-ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_JEPRET_ENVIRONMENT=production
+ENV NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_JEPRET_ENVIRONMENT=${NEXT_PUBLIC_JEPRET_ENVIRONMENT}
 COPY --from=deps /repo/node_modules ./node_modules
 COPY . .
 RUN npm --workspace @jepret/web run build

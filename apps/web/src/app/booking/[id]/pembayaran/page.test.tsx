@@ -250,7 +250,7 @@ describe("PaymentPage", () => {
   );
 
   it("hides development simulation controls in production but keeps creation", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_JEPRET_ENVIRONMENT", "production");
     stubPage();
     const { unmount } = renderPage();
     expect(
@@ -275,7 +275,7 @@ describe("PaymentPage", () => {
   });
 
   it("hides creator release controls in production", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_JEPRET_ENVIRONMENT", "production");
     const fetchMock = stubPage({
       me: CREATOR,
       bookings: [],
@@ -290,6 +290,21 @@ describe("PaymentPage", () => {
     expect(
       fetchMock.mock.calls.some(([url]) => String(url).includes("/dev/")),
     ).toBe(false);
+  });
+
+  it("shows simulation controls in a development Jepret production build", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_JEPRET_ENVIRONMENT", "development");
+    stubPage({
+      bookings: [booking("awaiting_payment")],
+      paymentResult: response(payment()),
+    });
+    renderPage();
+    expect(
+      await screen.findByRole("button", {
+        name: "Simulasikan pembayaran berhasil",
+      }),
+    ).toBeVisible();
   });
 
   it("shows the client booking summary without creator settlement details", async () => {
@@ -599,12 +614,29 @@ describe("PaymentPage", () => {
     const { container } = renderPage();
 
     expect(container.querySelector(".animate-pulse")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Memuat booking…");
     expect(
       fetchMock.mock.calls.some(([url]) => String(url).includes("payments")),
     ).toBe(false);
     resolveBookings(response([booking()]));
-    expect(await screen.findByText("Memuat pembayaran…")).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Memuat pembayaran…",
+      ),
+    );
     resolvePayment(response(null, 404));
+  });
+
+  it("announces payment status changes politely", async () => {
+    stubPage({
+      bookings: [booking("awaiting_payment")],
+      paymentResult: response(payment()),
+    });
+    renderPage();
+    await screen.findByText("Menunggu pembayaran");
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveTextContent("Menunggu pembayaran");
   });
 
   it("treats a payment 404 as not yet created", async () => {
