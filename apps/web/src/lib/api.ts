@@ -81,9 +81,29 @@ export interface CreatorListPage {
 export type BookingStatus =
   | "requested"
   | "accepted"
+  | "awaiting_payment"
+  | "confirmed"
   | "rejected"
   | "completed"
   | "cancelled";
+
+export type PaymentStatus =
+  "pending" | "paid" | "held" | "released" | "refunded" | "failed" | "expired";
+
+export interface Payment {
+  id: string;
+  booking_id: string;
+  provider: "mock";
+  amount_idr: number;
+  platform_fee_idr: number;
+  creator_net_idr: number;
+  status: PaymentStatus;
+  paid_at: string | null;
+  held_at: string | null;
+  released_at: string | null;
+  refunded_at: string | null;
+  created_at: string;
+}
 
 export interface BookingCreator {
   id: string;

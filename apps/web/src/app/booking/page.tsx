@@ -14,6 +14,11 @@ import {
   useMyBookings,
 } from "@/lib/bookings";
 
+const primaryActionClass =
+  "inline-flex min-h-11 items-center rounded-xl bg-[var(--primary)] px-5 text-sm font-medium";
+const secondaryActionClass =
+  "inline-flex min-h-11 items-center rounded-xl border border-[var(--border)] px-5 text-sm font-medium disabled:opacity-60";
+
 export default function BookingPage() {
   const router = useRouter();
   const { data: me, isPending: mePending } = useMe();
@@ -57,12 +62,28 @@ export default function BookingPage() {
             {bookings.data.map((booking) => (
               <li key={booking.id}>
                 <BookingCard booking={booking}>
+                  {booking.status === "accepted" ? (
+                    <Link
+                      href={`/booking/${booking.id}/pembayaran`}
+                      className={primaryActionClass}
+                    >
+                      Bayar sekarang
+                    </Link>
+                  ) : booking.status === "awaiting_payment" ||
+                    booking.status === "confirmed" ? (
+                    <Link
+                      href={`/booking/${booking.id}/pembayaran`}
+                      className={secondaryActionClass}
+                    >
+                      Lihat pembayaran
+                    </Link>
+                  ) : null}
                   {ACTIVE_BOOKING_STATUSES.includes(booking.status) ? (
                     <button
                       type="button"
                       onClick={() => cancel.mutate(booking.id)}
                       disabled={cancel.isPending}
-                      className="min-h-11 rounded-xl border border-[var(--border)] px-5 text-sm font-medium disabled:opacity-60"
+                      className={secondaryActionClass}
                     >
                       Batalkan
                     </button>

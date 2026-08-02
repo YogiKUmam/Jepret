@@ -78,14 +78,23 @@ describe("BookingMasukPage", () => {
     );
   });
 
-  it("offers completion for accepted bookings", async () => {
-    stubFetch(incoming("accepted"));
+  it("offers completion for confirmed bookings", async () => {
+    stubFetch(incoming("confirmed"));
     renderPage();
     expect(
       await screen.findByRole("button", { name: "Tandai selesai" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Terima" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows awaiting payment without a completion action", async () => {
+    stubFetch(incoming("awaiting_payment"));
+    renderPage();
+    expect(await screen.findByText("Menunggu pembayaran")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Tandai selesai" }),
     ).not.toBeInTheDocument();
   });
 });

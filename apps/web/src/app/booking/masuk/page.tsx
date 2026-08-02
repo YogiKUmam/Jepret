@@ -68,7 +68,7 @@ export default function BookingMasukPage() {
                         Tolak
                       </button>
                     </>
-                  ) : booking.status === "accepted" ? (
+                  ) : booking.status === "confirmed" ? (
                     <button
                       type="button"
                       onClick={() => complete.mutate(booking.id)}

@@ -76,12 +76,33 @@ describe("BookingPage", () => {
   it("cancels an active booking", async () => {
     const fetchMock = stubFetch([booking("b1", "accepted")]);
     renderPage();
-    await userEvent.click(await screen.findByRole("button", { name: "Batalkan" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Batalkan" }),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/bookings/b1/cancel",
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("links accepted bookings to payment creation", async () => {
+    stubFetch([booking("b1", "accepted")]);
+    renderPage();
+    expect(
+      await screen.findByRole("link", { name: "Bayar sekarang" }),
+    ).toHaveAttribute("href", "/booking/b1/pembayaran");
+  });
+
+  it.each(["awaiting_payment", "confirmed"])(
+    "links %s bookings to payment details",
+    async (status) => {
+      stubFetch([booking("b1", status)]);
+      renderPage();
+      expect(
+        await screen.findByRole("link", { name: "Lihat pembayaran" }),
+      ).toHaveAttribute("href", "/booking/b1/pembayaran");
+    },
+  );
 
   it("hides cancel for terminal bookings and shows empty state", async () => {
     stubFetch([]);

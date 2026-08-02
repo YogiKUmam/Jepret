@@ -10,6 +10,8 @@ export const INCOMING_KEY = ["bookings", "incoming"] as const;
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   requested: "Menunggu konfirmasi",
   accepted: "Diterima",
+  awaiting_payment: "Menunggu pembayaran",
+  confirmed: "Terkonfirmasi",
   rejected: "Ditolak",
   completed: "Selesai",
   cancelled: "Dibatalkan",
@@ -18,6 +20,8 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
 export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
   "requested",
   "accepted",
+  "awaiting_payment",
+  "confirmed",
 ];
 
 export interface CreateBookingInput {

@@ -1,10 +1,12 @@
-import type { Booking } from "@/lib/api";
+import type { Booking, BookingStatus } from "@/lib/api";
 import { BOOKING_STATUS_LABELS } from "@/lib/bookings";
 import { formatIdr } from "@/lib/format";
 
-const STATUS_CLASS: Record<string, string> = {
+const STATUS_CLASS: Record<BookingStatus, string> = {
   requested: "bg-[#8a6d3b] text-white",
   accepted: "bg-[#2f6b4f] text-white",
+  awaiting_payment: "bg-[#7b5b12] text-white",
+  confirmed: "bg-[#5b4a86] text-white",
   rejected: "bg-[#7a3b3b] text-white",
   completed: "bg-[#3b5a7a] text-white",
   cancelled: "bg-[var(--border)] text-[var(--foreground)]",
@@ -27,7 +29,7 @@ export function BookingCard({
         </h3>
         <span
           className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            STATUS_CLASS[booking.status] ?? ""
+            STATUS_CLASS[booking.status]
           }`}
         >
           {BOOKING_STATUS_LABELS[booking.status]}
@@ -45,7 +47,9 @@ export function BookingCard({
       <p className="mt-3 text-sm font-medium">
         {formatIdr(booking.quoted_price_idr)}
       </p>
-      {children ? <div className="mt-4 flex gap-3">{children}</div> : null}
+      {children ? (
+        <div className="mt-4 flex flex-wrap gap-3">{children}</div>
+      ) : null}
     </article>
   );
 }
