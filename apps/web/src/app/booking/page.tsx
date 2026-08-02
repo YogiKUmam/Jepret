@@ -15,7 +15,7 @@ import {
 } from "@/lib/bookings";
 
 const primaryActionClass =
-  "inline-flex min-h-11 items-center rounded-xl bg-[var(--primary)] px-5 text-sm font-medium";
+  "inline-flex min-h-11 items-center rounded-xl bg-[var(--primary)] px-5 text-sm font-medium text-[var(--primary-foreground)]";
 const secondaryActionClass =
   "inline-flex min-h-11 items-center rounded-xl border border-[var(--border)] px-5 text-sm font-medium disabled:opacity-60";
 
@@ -44,6 +44,11 @@ export default function BookingPage() {
             </Link>
           ) : null}
         </div>
+        {cancel.isError ? (
+          <p role="alert" className="mt-6 text-[var(--muted)]">
+            Booking belum dapat dibatalkan. Silakan coba lagi.
+          </p>
+        ) : null}
         {bookings.isPending ? (
           <div aria-hidden className="mt-6 space-y-4">
             {[0, 1].map((index) => (

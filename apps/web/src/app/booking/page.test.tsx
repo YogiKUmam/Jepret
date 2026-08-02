@@ -85,12 +85,72 @@ describe("BookingPage", () => {
     );
   });
 
+  it("reports a cancellation failure and allows retry", async () => {
+    type MockResponse = {
+      ok: boolean;
+      status: number;
+      json: () => Promise<unknown>;
+    };
+    let resolveCancel!: (response: MockResponse) => void;
+    const cancelResponse = new Promise<MockResponse>((resolve) => {
+      resolveCancel = resolve;
+    });
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes("/auth/me")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ data: ME }),
+        });
+      }
+      if (url.endsWith("/bookings/b1/cancel")) return cancelResponse;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: [booking("b1", "confirmed")] }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const cancelButton = await screen.findByRole("button", {
+      name: "Batalkan",
+    });
+    await userEvent.click(cancelButton);
+    expect(cancelButton).toBeDisabled();
+    await userEvent.click(cancelButton);
+    expect(
+      fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith("/bookings/b1/cancel"),
+      ),
+    ).toHaveLength(1);
+
+    resolveCancel({
+      ok: false,
+      status: 409,
+      json: () =>
+        Promise.resolve({
+          error: {
+            code: "INVALID_BOOKING_STATE",
+            message: "Booking tidak dapat dibatalkan.",
+          },
+        }),
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Booking belum dapat dibatalkan. Silakan coba lagi.",
+    );
+    expect(cancelButton).toBeEnabled();
+  });
+
   it("links accepted bookings to payment creation", async () => {
     stubFetch([booking("b1", "accepted")]);
     renderPage();
-    expect(
-      await screen.findByRole("link", { name: "Bayar sekarang" }),
-    ).toHaveAttribute("href", "/booking/b1/pembayaran");
+    const paymentLink = await screen.findByRole("link", {
+      name: "Bayar sekarang",
+    });
+    expect(paymentLink).toHaveAttribute("href", "/booking/b1/pembayaran");
+    expect(paymentLink).toHaveClass("text-[var(--primary-foreground)]");
   });
 
   it.each(["awaiting_payment", "confirmed"])(
