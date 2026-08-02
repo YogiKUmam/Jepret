@@ -27,8 +27,11 @@ export function useCreatePayment(bookingId: string) {
       }),
     onSuccess: (payment) => {
       queryClient.setQueryData(paymentKey(bookingId), payment);
-      queryClient.invalidateQueries({ queryKey: BOOKINGS_KEY });
-      queryClient.invalidateQueries({ queryKey: INCOMING_KEY });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: paymentKey(bookingId) }),
+        queryClient.invalidateQueries({ queryKey: BOOKINGS_KEY }),
+        queryClient.invalidateQueries({ queryKey: INCOMING_KEY }),
+      ]);
     },
   });
 }
@@ -47,8 +50,11 @@ function useSimulatePayment(
       }),
     onSuccess: (payment) => {
       queryClient.setQueryData(paymentKey(bookingId), payment);
-      queryClient.invalidateQueries({ queryKey: BOOKINGS_KEY });
-      queryClient.invalidateQueries({ queryKey: INCOMING_KEY });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: paymentKey(bookingId) }),
+        queryClient.invalidateQueries({ queryKey: BOOKINGS_KEY }),
+        queryClient.invalidateQueries({ queryKey: INCOMING_KEY }),
+      ]);
     },
   });
 }

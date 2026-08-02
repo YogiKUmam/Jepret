@@ -126,6 +126,7 @@ function renderPage() {
 afterEach(() => {
   push.mockClear();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("PaymentPage", () => {
@@ -226,6 +227,99 @@ describe("PaymentPage", () => {
     resolvePaid(response(payment("held")));
   });
 
+  it.each(["accepted", "completed", "cancelled"])(
+    "hides simulate-paid when a pending payment belongs to a %s booking",
+    async (status) => {
+      const fetchMock = stubPage({
+        bookings: [booking(status)],
+        paymentResult: response(payment()),
+      });
+      renderPage();
+      await screen.findByText("Menunggu pembayaran");
+      expect(
+        screen.queryByRole("button", {
+          name: "Simulasikan pembayaran berhasil",
+        }),
+      ).not.toBeInTheDocument();
+      expect(
+        fetchMock.mock.calls.some(([url]) =>
+          String(url).includes("simulate-paid"),
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it("hides development simulation controls in production but keeps creation", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    stubPage();
+    const { unmount } = renderPage();
+    expect(
+      await screen.findByRole("button", { name: "Buat pembayaran" }),
+    ).toBeVisible();
+    unmount();
+
+    const productionFetch = stubPage({
+      bookings: [booking("awaiting_payment")],
+      paymentResult: response(payment()),
+    });
+    renderPage();
+    await screen.findByText("Menunggu pembayaran");
+    expect(
+      screen.queryByRole("button", {
+        name: "Simulasikan pembayaran berhasil",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      productionFetch.mock.calls.some(([url]) => String(url).includes("/dev/")),
+    ).toBe(false);
+  });
+
+  it("hides creator release controls in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const fetchMock = stubPage({
+      me: CREATOR,
+      bookings: [],
+      incoming: [booking("completed")],
+      paymentResult: response(payment("held")),
+    });
+    renderPage();
+    await screen.findByText("Dana tercatat aman");
+    expect(
+      screen.queryByRole("button", { name: "Simulasikan pencairan" }),
+    ).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/dev/")),
+    ).toBe(false);
+  });
+
+  it("shows the client booking summary without creator settlement details", async () => {
+    stubPage({
+      bookings: [booking("awaiting_payment")],
+      paymentResult: response(payment()),
+    });
+    renderPage();
+    expect(await screen.findByText("Studio Cahaya")).toBeVisible();
+    expect(screen.getByText("1 September 2026")).toBeVisible();
+    expect(screen.getAllByText("Bandung")).toHaveLength(2);
+    expect(screen.getByText(/Rp\s*1\.500\.000/)).toBeVisible();
+    expect(screen.queryByText("Biaya platform")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pendapatan kreator")).not.toBeInTheDocument();
+  });
+
+  it("shows fee and creator net only for the incoming creator booking", async () => {
+    stubPage({
+      me: CREATOR,
+      bookings: [],
+      incoming: [booking("completed")],
+      paymentResult: response(payment("held")),
+    });
+    renderPage();
+    expect(await screen.findByText("Biaya platform")).toBeVisible();
+    expect(screen.getByText(/Rp\s*150\.000/)).toBeVisible();
+    expect(screen.getByText("Pendapatan kreator")).toBeVisible();
+    expect(screen.getByText(/Rp\s*1\.350\.000/)).toBeVisible();
+  });
+
   it("allows only the related creator to release a held completed booking", async () => {
     const fetchMock = stubPage({
       me: CREATOR,
@@ -241,6 +335,205 @@ describe("PaymentPage", () => {
       "/api/v1/dev/payments/p1/simulate-release",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("keeps creation revalidation authoritative before enabling the next action", async () => {
+    let resolvePaymentRefresh!: (value: MockResponse) => void;
+    let resolveBookingsRefresh!: (value: MockResponse) => void;
+    let resolveIncomingRefresh!: (value: MockResponse) => void;
+    const paymentRefresh = new Promise<MockResponse>((resolve) => {
+      resolvePaymentRefresh = resolve;
+    });
+    const bookingsRefresh = new Promise<MockResponse>((resolve) => {
+      resolveBookingsRefresh = resolve;
+    });
+    const incomingRefresh = new Promise<MockResponse>((resolve) => {
+      resolveIncomingRefresh = resolve;
+    });
+    let paymentGets = 0;
+    let bookingGets = 0;
+    let incomingGets = 0;
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith("/auth/me")) return Promise.resolve(response(CLIENT));
+      if (url.endsWith("/bookings/incoming")) {
+        incomingGets += 1;
+        return incomingGets === 1
+          ? Promise.resolve(response([]))
+          : incomingRefresh;
+      }
+      if (url.endsWith("/bookings")) {
+        bookingGets += 1;
+        return bookingGets === 1
+          ? Promise.resolve(response([booking()]))
+          : bookingsRefresh;
+      }
+      if (url.endsWith("/bookings/b1/payments") && init?.method === "POST")
+        return Promise.resolve(response(payment()));
+      paymentGets += 1;
+      return paymentGets === 1
+        ? Promise.resolve(response(null, 404))
+        : paymentRefresh;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Buat pembayaran" }),
+    );
+    await waitFor(() => {
+      expect(paymentGets).toBe(2);
+      expect(bookingGets).toBe(2);
+      expect(incomingGets).toBe(2);
+    });
+    expect(screen.getByText("Menunggu pembayaran")).toBeVisible();
+    expect(
+      screen.queryByRole("button", {
+        name: "Simulasikan pembayaran berhasil",
+      }),
+    ).not.toBeInTheDocument();
+
+    resolvePaymentRefresh(response(payment()));
+    resolveBookingsRefresh(response([booking("awaiting_payment")]));
+    resolveIncomingRefresh(response([]));
+    expect(
+      await screen.findByRole("button", {
+        name: "Simulasikan pembayaran berhasil",
+      }),
+    ).toBeEnabled();
+  });
+
+  it("refetches payment and booking lists after simulate-paid", async () => {
+    let resolvePaymentRefresh!: (value: MockResponse) => void;
+    let resolveBookingsRefresh!: (value: MockResponse) => void;
+    let resolveIncomingRefresh!: (value: MockResponse) => void;
+    const paymentRefresh = new Promise<MockResponse>((resolve) => {
+      resolvePaymentRefresh = resolve;
+    });
+    const bookingsRefresh = new Promise<MockResponse>((resolve) => {
+      resolveBookingsRefresh = resolve;
+    });
+    const incomingRefresh = new Promise<MockResponse>((resolve) => {
+      resolveIncomingRefresh = resolve;
+    });
+    let paymentGets = 0;
+    let bookingGets = 0;
+    let incomingGets = 0;
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith("/auth/me")) return Promise.resolve(response(CLIENT));
+      if (url.endsWith("/bookings/incoming")) {
+        incomingGets += 1;
+        return incomingGets === 1
+          ? Promise.resolve(response([]))
+          : incomingRefresh;
+      }
+      if (url.endsWith("/bookings")) {
+        bookingGets += 1;
+        return bookingGets === 1
+          ? Promise.resolve(response([booking("awaiting_payment")]))
+          : bookingsRefresh;
+      }
+      if (
+        url.endsWith("/dev/payments/p1/simulate-paid") &&
+        init?.method === "POST"
+      )
+        return Promise.resolve(response(payment("held")));
+      paymentGets += 1;
+      return paymentGets === 1
+        ? Promise.resolve(response(payment()))
+        : paymentRefresh;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Simulasikan pembayaran berhasil",
+      }),
+    );
+    expect(await screen.findByText("Dana tercatat aman")).toBeVisible();
+    await waitFor(() => {
+      expect(paymentGets).toBe(2);
+      expect(bookingGets).toBe(2);
+      expect(incomingGets).toBe(2);
+    });
+    expect(
+      screen.queryByRole("button", {
+        name: "Simulasikan pembayaran berhasil",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith("/dev/payments/p1/simulate-paid"),
+      ),
+    ).toHaveLength(1);
+    resolvePaymentRefresh(response(payment("held")));
+    resolveBookingsRefresh(response([booking("confirmed")]));
+    resolveIncomingRefresh(response([]));
+    expect(await screen.findByText("Dana tercatat aman")).toBeVisible();
+  });
+
+  it("refetches payment and booking lists after simulate-release", async () => {
+    let resolvePaymentRefresh!: (value: MockResponse) => void;
+    let resolveBookingsRefresh!: (value: MockResponse) => void;
+    let resolveIncomingRefresh!: (value: MockResponse) => void;
+    const paymentRefresh = new Promise<MockResponse>((resolve) => {
+      resolvePaymentRefresh = resolve;
+    });
+    const bookingsRefresh = new Promise<MockResponse>((resolve) => {
+      resolveBookingsRefresh = resolve;
+    });
+    const incomingRefresh = new Promise<MockResponse>((resolve) => {
+      resolveIncomingRefresh = resolve;
+    });
+    let paymentGets = 0;
+    let bookingGets = 0;
+    let incomingGets = 0;
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith("/auth/me")) return Promise.resolve(response(CREATOR));
+      if (url.endsWith("/bookings/incoming")) {
+        incomingGets += 1;
+        return incomingGets === 1
+          ? Promise.resolve(response([booking("completed")]))
+          : incomingRefresh;
+      }
+      if (url.endsWith("/bookings")) {
+        bookingGets += 1;
+        return bookingGets === 1
+          ? Promise.resolve(response([]))
+          : bookingsRefresh;
+      }
+      if (
+        url.endsWith("/dev/payments/p1/simulate-release") &&
+        init?.method === "POST"
+      )
+        return Promise.resolve(response(payment("released")));
+      paymentGets += 1;
+      return paymentGets === 1
+        ? Promise.resolve(response(payment("held")))
+        : paymentRefresh;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Simulasikan pencairan" }),
+    );
+    expect(await screen.findByText("Pembayaran telah dilepas")).toBeVisible();
+    await waitFor(() => {
+      expect(paymentGets).toBe(2);
+      expect(bookingGets).toBe(2);
+      expect(incomingGets).toBe(2);
+    });
+    expect(
+      screen.queryByRole("button", { name: "Simulasikan pencairan" }),
+    ).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith("/dev/payments/p1/simulate-release"),
+      ),
+    ).toHaveLength(1);
+    resolvePaymentRefresh(response(payment("released")));
+    resolveBookingsRefresh(response([]));
+    resolveIncomingRefresh(response([booking("completed")]));
+    expect(await screen.findByText("Pembayaran telah dilepas")).toBeVisible();
   });
 
   it.each([
@@ -367,11 +660,48 @@ describe("PaymentPage", () => {
   });
 
   it("handles an empty or unrelated booking", async () => {
-    stubPage({ bookings: [{ ...booking(), id: "other" }] });
+    const fetchMock = stubPage({ bookings: [{ ...booking(), id: "other" }] });
     renderPage();
     expect(await screen.findByText("Booking tidak ditemukan.")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Buat pembayaran" }),
     ).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).endsWith("/bookings/b1/payments"),
+      ),
+    ).toBe(false);
+  });
+
+  it("waits for an incoming match after my bookings resolve empty", async () => {
+    let resolveIncoming!: (value: MockResponse) => void;
+    const incomingResult = new Promise<MockResponse>((resolve) => {
+      resolveIncoming = resolve;
+    });
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith("/auth/me")) return Promise.resolve(response(CREATOR));
+      if (url.endsWith("/bookings/incoming")) return incomingResult;
+      if (url.endsWith("/bookings")) return Promise.resolve(response([]));
+      return Promise.resolve(response(payment("held")));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => String(url).endsWith("/bookings")),
+      ).toBe(true),
+    );
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).endsWith("/bookings/b1/payments"),
+      ),
+    ).toBe(false);
+    resolveIncoming(response([booking("completed")]));
+    expect(await screen.findByText("Dana tercatat aman")).toBeVisible();
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).endsWith("/bookings/b1/payments"),
+      ),
+    ).toBe(true);
   });
 });

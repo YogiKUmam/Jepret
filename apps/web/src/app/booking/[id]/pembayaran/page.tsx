@@ -36,6 +36,15 @@ const actionClass =
 const retryClass =
   "mt-4 min-h-11 rounded-xl border border-[var(--border)] px-5 text-sm font-medium disabled:opacity-60";
 
+function formatEventDate(date: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T00:00:00Z`));
+}
+
 function LoadingSkeleton() {
   return (
     <div aria-hidden className="mt-8 space-y-4">
@@ -83,14 +92,23 @@ function PaymentDetails({
   const notCreated =
     payment.error instanceof ApiError && payment.error.status === 404;
   const canCreate = notCreated && booking.status === "accepted" && !isIncoming;
-  const canSimulatePaid = payment.data?.status === "pending" && !isIncoming;
+  const canSimulatePaid =
+    process.env.NODE_ENV !== "production" &&
+    payment.data?.status === "pending" &&
+    booking.status === "awaiting_payment" &&
+    !isIncoming;
   const canSimulateRelease =
+    process.env.NODE_ENV !== "production" &&
     payment.data?.status === "held" &&
     booking.status === "completed" &&
     isIncoming &&
     me.creator_profile?.id === booking.creator.id;
   const mutationError =
     createPayment.isError || simulatePaid.isError || simulateRelease.isError;
+  const mutationPending =
+    createPayment.isPending ||
+    simulatePaid.isPending ||
+    simulateRelease.isPending;
 
   if (payment.isPending) {
     return <p className="mt-8 text-[var(--muted)]">Memuat pembayaran…</p>;
@@ -107,12 +125,46 @@ function PaymentDetails({
 
   return (
     <div className="mt-8 space-y-8">
+      <dl className="grid grid-cols-1 gap-4 border-y border-[var(--border)] py-5 sm:grid-cols-3">
+        <div>
+          <dt className="text-sm text-[var(--muted)]">Kreator</dt>
+          <dd className="mt-1 font-medium">{booking.creator.display_name}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-[var(--muted)]">Tanggal acara</dt>
+          <dd className="mt-1 font-medium">
+            {formatEventDate(booking.event_date)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sm text-[var(--muted)]">Kota acara</dt>
+          <dd className="mt-1 font-medium">{booking.event_city}</dd>
+        </div>
+      </dl>
+
       <div>
         <p className="text-sm text-[var(--muted)]">Total pembayaran</p>
         <p className="mt-1 font-serif text-4xl">
           {formatIdr(payment.data?.amount_idr ?? booking.quoted_price_idr)}
         </p>
       </div>
+
+      {isIncoming && payment.data ? (
+        <dl className="grid grid-cols-2 gap-4">
+          <div>
+            <dt className="text-sm text-[var(--muted)]">Biaya platform</dt>
+            <dd className="mt-1 font-medium">
+              {formatIdr(payment.data.platform_fee_idr)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-[var(--muted)]">Pendapatan kreator</dt>
+            <dd className="mt-1 font-medium">
+              {formatIdr(payment.data.creator_net_idr)}
+            </dd>
+          </div>
+        </dl>
+      ) : null}
 
       <div className="border-y border-[var(--border)] py-5">
         <p className="text-sm text-[var(--muted)]">Status</p>
@@ -135,9 +187,9 @@ function PaymentDetails({
         <button
           type="button"
           className={actionClass}
-          disabled={createPayment.isPending}
+          disabled={mutationPending}
           onClick={() => {
-            if (!createPayment.isPending) createPayment.mutate(idempotencyKey);
+            if (!mutationPending) createPayment.mutate(idempotencyKey);
           }}
         >
           {createPayment.isPending ? "Membuat pembayaran…" : "Buat pembayaran"}
@@ -146,9 +198,9 @@ function PaymentDetails({
         <button
           type="button"
           className={actionClass}
-          disabled={simulatePaid.isPending}
+          disabled={mutationPending}
           onClick={() => {
-            if (!simulatePaid.isPending) simulatePaid.mutate();
+            if (!mutationPending) simulatePaid.mutate();
           }}
         >
           {simulatePaid.isPending
@@ -159,9 +211,9 @@ function PaymentDetails({
         <button
           type="button"
           className={actionClass}
-          disabled={simulateRelease.isPending}
+          disabled={mutationPending}
           onClick={() => {
-            if (!simulateRelease.isPending) simulateRelease.mutate();
+            if (!mutationPending) simulateRelease.mutate();
           }}
         >
           {simulateRelease.isPending
