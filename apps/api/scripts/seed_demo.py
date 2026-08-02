@@ -6,9 +6,10 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import selectinload
 
 from app.core.security import hash_password
-from app.db.models import Booking, CreatorProfile, User
+from app.db.models import Booking, CreatorProfile, Payment, User
 from app.db.session import dispose_engine, get_engine
 
 BASE_REVIEWED_AT = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
@@ -146,10 +147,12 @@ async def _upsert_user(db: AsyncSession, entry: dict[str, Any]) -> User:
     return user
 
 
-DEMO_BOOKINGS = [
-    {"days": 30, "status": "requested"},
-    {"days": 45, "status": "accepted"},
-    {"days": -20, "status": "completed"},
+DEMO_BOOKINGS: list[dict[str, Any]] = [
+    {"days": 30, "status": "requested", "payment_status": None},
+    {"days": 45, "status": "accepted", "payment_status": None},
+    {"days": 60, "status": "awaiting_payment", "payment_status": "pending"},
+    {"days": 75, "status": "confirmed", "payment_status": "held"},
+    {"days": -20, "status": "completed", "payment_status": "released"},
 ]
 
 
@@ -166,17 +169,17 @@ async def _seed_bookings(db: AsyncSession) -> None:
     today = datetime.now(UTC).date()
     for entry in DEMO_BOOKINGS:
         event_date: date = today + timedelta(days=int(entry["days"]))
-        existing = await db.scalar(
-            select(Booking).where(
+        booking = await db.scalar(
+            select(Booking)
+            .options(selectinload(Booking.payment))
+            .where(
                 Booking.client_id == client.id,
                 Booking.creator_profile_id == profile.id,
                 Booking.event_date == event_date,
             )
         )
-        if existing is not None:
-            continue
-        db.add(
-            Booking(
+        if booking is None:
+            booking = Booking(
                 client_id=client.id,
                 creator_profile_id=profile.id,
                 event_date=event_date,
@@ -184,19 +187,54 @@ async def _seed_bookings(db: AsyncSession) -> None:
                 notes="Booking demo.",
                 status=str(entry["status"]),
                 quoted_price_idr=profile.starting_price_idr,
+                payment=None,
             )
+            db.add(booking)
+            print(f"created booking demo {entry['status']} {event_date}")
+
+        payment_status = entry["payment_status"]
+        if payment_status is None:
+            continue
+
+        await db.flush()
+        if booking.payment is not None:
+            print(f"exists  payment demo {payment_status} {event_date}")
+            continue
+
+        paid_at = None
+        held_at = None
+        released_at = None
+        if payment_status in {"held", "released"}:
+            paid_at = BASE_REVIEWED_AT + timedelta(days=1)
+            held_at = paid_at + timedelta(minutes=5)
+        if payment_status == "released":
+            released_at = BASE_REVIEWED_AT + timedelta(days=2)
+
+        amount = booking.quoted_price_idr
+        fee = amount * 10 // 100
+        booking.payment = Payment(
+            provider="mock",
+            provider_reference=f"mock-{booking.id}",
+            idempotency_key=f"seed-{booking.id}",
+            amount_idr=amount,
+            platform_fee_idr=fee,
+            creator_net_idr=amount - fee,
+            status=str(payment_status),
+            paid_at=paid_at,
+            held_at=held_at,
+            released_at=released_at,
         )
-        print(f"created booking demo {entry['status']} {event_date}")
+        print(f"created payment demo {payment_status} {event_date}")
 
 
 async def seed() -> None:
     factory = async_sessionmaker(get_engine(), expire_on_commit=False)
     async with factory() as db:
-        for entry in DEMO_USERS:
-            await _upsert_user(db, entry)
+        for user_entry in DEMO_USERS:
+            await _upsert_user(db, user_entry)
 
-        for index, entry in enumerate(DEMO_CREATORS):
-            user = await _upsert_user(db, entry)
+        for index, creator_entry in enumerate(DEMO_CREATORS):
+            user = await _upsert_user(db, creator_entry)
             profile = await db.scalar(
                 select(CreatorProfile).where(CreatorProfile.user_id == user.id)
             )
@@ -208,10 +246,11 @@ async def seed() -> None:
                         status="approved",
                         submitted_at=reviewed_at,
                         reviewed_at=reviewed_at,
-                        **entry["profile"],
+                        **creator_entry["profile"],
                     )
                 )
-                print(f"created creator profile {entry['profile']['display_name']} (approved)")
+                profile_name = creator_entry["profile"]["display_name"]
+                print(f"created creator profile {profile_name} (approved)")
 
         await db.flush()
         await _seed_bookings(db)
