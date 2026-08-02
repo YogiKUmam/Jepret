@@ -45,7 +45,7 @@ export default function BookingPage() {
           ) : null}
         </div>
         {cancel.isError ? (
-          <p role="alert" className="mt-6 text-[var(--muted)]">
+          <p role="alert" className="mt-6 text-[var(--surface-foreground)]">
             Booking belum dapat dibatalkan. Silakan coba lagi.
           </p>
         ) : null}

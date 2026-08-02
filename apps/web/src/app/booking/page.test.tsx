@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -137,10 +137,84 @@ describe("BookingPage", () => {
         }),
     });
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
       "Booking belum dapat dibatalkan. Silakan coba lagi.",
     );
+    expect(alert).toHaveClass("text-[var(--surface-foreground)]");
     expect(cancelButton).toBeEnabled();
+    await userEvent.click(cancelButton);
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([url]) =>
+          String(url).endsWith("/bookings/b1/cancel"),
+        ),
+      ).toHaveLength(2),
+    );
+  });
+
+  it("stays pending until cancellation refresh replaces stale actions", async () => {
+    type MockResponse = {
+      ok: boolean;
+      status: number;
+      json: () => Promise<unknown>;
+    };
+    let resolveRefetch!: (response: MockResponse) => void;
+    const refetchResponse = new Promise<MockResponse>((resolve) => {
+      resolveRefetch = resolve;
+    });
+    let bookingRequestCount = 0;
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes("/auth/me")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ data: ME }),
+        });
+      }
+      if (url.endsWith("/bookings/b1/cancel")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ data: booking("b1", "cancelled") }),
+        });
+      }
+      bookingRequestCount += 1;
+      if (bookingRequestCount > 1) return refetchResponse;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: [booking("b1", "confirmed")] }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const cancelButton = await screen.findByRole("button", {
+      name: "Batalkan",
+    });
+    await userEvent.click(cancelButton);
+    await waitFor(() => {
+      expect(bookingRequestCount).toBe(2);
+      expect(cancelButton).toBeDisabled();
+    });
+    await userEvent.click(cancelButton);
+    expect(
+      fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith("/bookings/b1/cancel"),
+      ),
+    ).toHaveLength(1);
+
+    resolveRefetch({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data: [booking("b1", "cancelled")] }),
+    });
+
+    expect(await screen.findByText("Dibatalkan")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Batalkan" }),
+    ).not.toBeInTheDocument();
   });
 
   it("links accepted bookings to payment creation", async () => {

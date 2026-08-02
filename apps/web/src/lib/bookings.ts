@@ -66,9 +66,10 @@ export function useBookingAction(action: BookingAction) {
   return useMutation({
     mutationFn: (bookingId: string) =>
       apiFetch<Booking>(`/bookings/${bookingId}/${action}`, { method: "POST" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BOOKINGS_KEY });
-      queryClient.invalidateQueries({ queryKey: INCOMING_KEY });
-    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: BOOKINGS_KEY }),
+        queryClient.invalidateQueries({ queryKey: INCOMING_KEY }),
+      ]),
   });
 }
