@@ -5,6 +5,7 @@ const CREATOR = { email: "kreator@jepret.local", password: "kreator12345" };
 
 interface IncomingBooking {
   event_date: string;
+  status: string;
 }
 
 interface IncomingBookingEnvelope {
@@ -12,6 +13,13 @@ interface IncomingBookingEnvelope {
 }
 
 test.describe.configure({ mode: "serial" });
+
+const BLOCKING_BOOKING_STATUSES = new Set([
+  "accepted",
+  "awaiting_payment",
+  "confirmed",
+]);
+const EVENT_DATE_CANDIDATE_COUNT = 730;
 
 function isoDate(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -51,25 +59,29 @@ function bookingCard(
     .filter({ hasText: status });
 }
 
-async function findAvailableEventDate(
-  page: import("@playwright/test").Page,
-  initialOffset: number,
-) {
+async function findAvailableEventDate(page: import("@playwright/test").Page) {
   await login(page, CREATOR);
   const response = await page.request.get("/api/v1/bookings/incoming");
   expect(response.ok()).toBeTruthy();
 
   const envelope = (await response.json()) as IncomingBookingEnvelope;
-  const usedDates = new Set(envelope.data.map((booking) => booking.event_date));
+  const activeDates = new Set(
+    envelope.data
+      .filter((booking) => BLOCKING_BOOKING_STATUSES.has(booking.status))
+      .map((booking) => booking.event_date),
+  );
   const now = new Date();
   const start = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
   start.setUTCFullYear(start.getUTCFullYear() + 1);
+  const randomSeed = Number.parseInt(crypto.randomUUID().slice(0, 8), 16);
+  const startIndex = randomSeed % EVENT_DATE_CANDIDATE_COUNT;
 
-  for (let index = 0; index < 730; index += 1) {
-    const candidate = isoDate(addUtcDays(start, initialOffset + index));
-    if (!usedDates.has(candidate)) {
+  for (let step = 0; step < EVENT_DATE_CANDIDATE_COUNT; step += 1) {
+    const candidateIndex = (startIndex + step) % EVENT_DATE_CANDIDATE_COUNT;
+    const candidate = isoDate(addUtcDays(start, candidateIndex));
+    if (!activeDates.has(candidate)) {
       await logout(page);
       return candidate;
     }
@@ -77,7 +89,7 @@ async function findAvailableEventDate(
 
   await logout(page);
   throw new Error(
-    "Setup E2E gagal: tidak ada tanggal acara yang tersedia dalam 730 hari.",
+    `Setup E2E gagal: tidak ada tanggal acara yang tersedia dalam ${EVENT_DATE_CANDIDATE_COUNT} hari.`,
   );
 }
 
@@ -138,7 +150,7 @@ async function payBooking(
 test("client pays an accepted booking and the creator releases it", async ({
   page,
 }) => {
-  const eventDate = await findAvailableEventDate(page, 0);
+  const eventDate = await findAvailableEventDate(page);
   const bookingNote = `E2E release ${crypto.randomUUID()}`;
 
   await requestBooking(page, eventDate, bookingNote);
@@ -160,7 +172,7 @@ test("client pays an accepted booking and the creator releases it", async ({
 });
 
 test("cancelling a paid booking refunds the payment", async ({ page }) => {
-  const eventDate = await findAvailableEventDate(page, 365);
+  const eventDate = await findAvailableEventDate(page);
   const bookingNote = `E2E refund ${crypto.randomUUID()}`;
 
   await requestBooking(page, eventDate, bookingNote);
