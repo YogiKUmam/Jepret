@@ -14,7 +14,7 @@ class Environment(StrEnum):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JEPRET_", env_file=".env", extra="ignore")
 
-    environment: Environment = Environment.DEVELOPMENT
+    environment: Environment
     database_url: str
     public_origin: AnyHttpUrl
     minio_endpoint: AnyHttpUrl
