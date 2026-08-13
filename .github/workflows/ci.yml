@@ -19,6 +19,7 @@ jobs:
           --health-cmd "pg_isready -U jepret -d jepret"
           --health-interval 5s --health-timeout 3s --health-retries 12
     env:
+      JEPRET_ENVIRONMENT: test
       JEPRET_DATABASE_URL: postgresql+asyncpg://jepret:jepret@localhost:5432/jepret
       JEPRET_PUBLIC_ORIGIN: http://localhost:8080
       JEPRET_MINIO_ENDPOINT: http://localhost:9000
