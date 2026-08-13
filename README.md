@@ -43,7 +43,13 @@ Tanpa gateway, web dan API berjalan pada origin berbeda; gunakan mode ini hanya 
 
 ## Environment variables
 
-Salin `.env.example` menjadi `.env` lalu sesuaikan. Seluruh variable API memakai prefix `JEPRET_`. Tidak ada secret asli di repository; nilai default hanya untuk pengembangan lokal.
+Salin `.env.example` menjadi `.env` lalu sesuaikan. Seluruh variable API memakai
+prefix `JEPRET_`. `JEPRET_ENVIRONMENT` wajib diisi dengan `development`, `test`,
+atau `production`; API menolak startup jika variable ini tidak tersedia atau
+nilainya tidak valid. Compose menetapkan environment API, migration, dan seed
+secara eksplisit ke `development`, sedangkan build frontend meneruskan
+`NEXT_PUBLIC_JEPRET_ENVIRONMENT` dengan default `development`. Tidak ada secret
+asli di repository; nilai default hanya untuk pengembangan lokal.
 
 ## Migration
 
@@ -99,8 +105,8 @@ Setelah stack di-migrate dan di-seed, alur sandbox dapat dicoba melalui
 2. Masuk sebagai kreator, buka **Booking masuk**, terima booking, lalu keluar.
 3. Masuk kembali sebagai klien, buka **Booking saya** → **Bayar sekarang**,
    buat pembayaran, lalu pilih **Simulasikan pembayaran berhasil**.
-4. Untuk alur pencairan, masuk sebagai kreator, tandai booking selesai, buka
-   halaman pembayarannya, lalu pilih **Simulasikan pencairan**.
+4. Untuk alur pencairan, masuk sebagai kreator lalu buka **Booking masuk** →
+   **Tandai selesai** → **Lihat pembayaran** → **Simulasikan pencairan**.
 5. Untuk alur refund, klien dapat membatalkan booking yang dananya masih
    berstatus held.
 
@@ -124,10 +130,12 @@ Auth saat ini memakai password hash dan session cookie HttpOnly, SameSite=Lax
 Belum tersedia MFA, verifikasi email, password recovery, atau rate limiting.
 
 Payment masih memakai mock provider tanpa dana nyata dan tanpa verifikasi
-signature provider production. Mock webhook dan `/api/v1/dev/payments/*`
-ditolak saat `JEPRET_ENVIRONMENT=production`; frontend simulasi juga tidak
-dibangun oleh konfigurasi production. Jangan mengekspos stack Compose lokal ke
-jaringan publik atau memakai mock provider untuk transaksi nyata.
+signature provider production. Mock webhook dan endpoint
+`/api/v1/dev/payments/*` ditolak saat `JEPRET_ENVIRONMENT=production`. Build
+frontend production menyembunyikan kontrol simulasi, tetapi client bundle atau
+kode frontend bukan security boundary; enforcement keamanan tetap berada di
+backend. Jangan mengekspos stack Compose lokal ke jaringan publik atau memakai
+mock provider untuk transaksi nyata.
 
 ## Deployment notes
 

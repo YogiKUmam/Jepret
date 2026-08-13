@@ -19,6 +19,7 @@ Marker `integration` di-deselect secara default (`addopts = "-m 'not integration
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d db
+$env:JEPRET_ENVIRONMENT='test'
 $env:JEPRET_DATABASE_URL='postgresql+asyncpg://jepret:jepret@localhost:15432/jepret'
 $env:JEPRET_PUBLIC_ORIGIN='http://localhost:8080'
 $env:JEPRET_MINIO_ENDPOINT='http://localhost:9000'
@@ -92,7 +93,11 @@ Untuk iterasi alur booking/payment saja:
 
 ```bash
 npm --workspace @jepret/web run e2e -- booking.spec.ts
+npm --workspace @jepret/web run e2e -- booking.spec.ts
 ```
+
+Spec booking memuat 3 test. Dua eksekusi berurutan yang sama-sama lulus
+membuktikan setiap run terisolasi dan tidak bergantung pada data run sebelumnya.
 
 Base URL default `http://localhost:8080` (override dengan `E2E_BASE_URL`). E2E tidak termasuk `npm run verify`; jalankan eksplisit atau lewat CI.
 
