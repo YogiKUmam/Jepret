@@ -64,6 +64,17 @@
   - `npm run verify` hijau penuh: format check, lint, mypy (30 source files),
     tsc, pytest (42 passed, 58 deselected), Vitest (68 passed), contracts check
     tanpa diff, Next.js build, dan Compose config.
+  - Remediasi quality review diverifikasi ulang pada 2026-08-13: API sekarang
+    mewajibkan environment eksplisit dan CI mengisi `JEPRET_ENVIRONMENT=test`;
+    kreator dapat membuka **Lihat pembayaran** dari booking `confirmed` maupun
+    `completed`. Focused config/provider pytest lulus 30 test; integration
+    booking/payment lulus 34 test dengan 1 warning deprecation upstream
+    Starlette/httpx; Vitest lulus 12 test files/69 test. Focused booking E2E
+    lulus dua kali berturut-turut, masing-masing 3 test tanpa collision, dan
+    full Playwright lulus 9 test. `npm run verify` final lulus: Ruff format 55
+    files, Ruff/ESLint, mypy 30 source files, tsc, pytest 44 passed/58
+    deselected dengan 1 warning upstream, Vitest 12 files/69 test, contracts
+    tanpa diff, Next.js build, dan Compose config.
 
 - [ ] Phase 6 — Chat dan deliverables
 - [ ] Phase 7 — Completion, reviews, disputes, admin
