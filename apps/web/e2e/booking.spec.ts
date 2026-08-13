@@ -3,6 +3,26 @@ import { expect, test } from "@playwright/test";
 const CLIENT = { email: "klien@jepret.local", password: "klien12345" };
 const CREATOR = { email: "kreator@jepret.local", password: "kreator12345" };
 
+interface IncomingBooking {
+  event_date: string;
+}
+
+interface IncomingBookingEnvelope {
+  data: IncomingBooking[];
+}
+
+test.describe.configure({ mode: "serial" });
+
+function isoDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addUtcDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
 async function login(
   page: import("@playwright/test").Page,
   account: { email: string; password: string },
@@ -26,8 +46,39 @@ function bookingCard(
   status: string,
 ) {
   return page
-    .locator("li", { hasText: bookingNote })
+    .getByRole("listitem")
+    .filter({ hasText: bookingNote })
     .filter({ hasText: status });
+}
+
+async function findAvailableEventDate(
+  page: import("@playwright/test").Page,
+  initialOffset: number,
+) {
+  await login(page, CREATOR);
+  const response = await page.request.get("/api/v1/bookings/incoming");
+  expect(response.ok()).toBeTruthy();
+
+  const envelope = (await response.json()) as IncomingBookingEnvelope;
+  const usedDates = new Set(envelope.data.map((booking) => booking.event_date));
+  const now = new Date();
+  const start = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  start.setUTCFullYear(start.getUTCFullYear() + 1);
+
+  for (let index = 0; index < 730; index += 1) {
+    const candidate = isoDate(addUtcDays(start, initialOffset + index));
+    if (!usedDates.has(candidate)) {
+      await logout(page);
+      return candidate;
+    }
+  }
+
+  await logout(page);
+  throw new Error(
+    "Setup E2E gagal: tidak ada tanggal acara yang tersedia dalam 730 hari.",
+  );
 }
 
 async function requestBooking(
@@ -87,28 +138,30 @@ async function payBooking(
 test("client pays an accepted booking and the creator releases it", async ({
   page,
 }) => {
-  const eventDate = "2027-03-15";
-  const bookingNote = `E2E release ${Date.now()}`;
+  const eventDate = await findAvailableEventDate(page, 0);
+  const bookingNote = `E2E release ${crypto.randomUUID()}`;
 
   await requestBooking(page, eventDate, bookingNote);
   await acceptBooking(page, bookingNote);
-  const paymentUrl = await payBooking(page, bookingNote);
+  await payBooking(page, bookingNote);
 
   await logout(page);
   await login(page, CREATOR);
   await page.goto("/booking/masuk");
   const incoming = bookingCard(page, bookingNote, "Terkonfirmasi");
   await incoming.getByRole("button", { name: "Tandai selesai" }).click();
-  await expect(bookingCard(page, bookingNote, "Selesai")).toBeVisible();
+  const completed = bookingCard(page, bookingNote, "Selesai");
+  await expect(completed).toBeVisible();
 
-  await page.goto(paymentUrl);
+  await completed.getByRole("link", { name: "Lihat pembayaran" }).click();
+  await expect(page).toHaveURL(/\/booking\/[^/]+\/pembayaran$/);
   await page.getByRole("button", { name: "Simulasikan pencairan" }).click();
   await expect(page.getByText("Pembayaran telah dilepas")).toBeVisible();
 });
 
 test("cancelling a paid booking refunds the payment", async ({ page }) => {
-  const eventDate = "2027-03-16";
-  const bookingNote = `E2E refund ${Date.now()}`;
+  const eventDate = await findAvailableEventDate(page, 365);
+  const bookingNote = `E2E refund ${crypto.randomUUID()}`;
 
   await requestBooking(page, eventDate, bookingNote);
   await acceptBooking(page, bookingNote);
