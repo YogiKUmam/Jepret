@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -6,7 +8,10 @@ from app.core.config import get_settings
 from app.main import create_app
 
 
-def test_app_startup_requires_explicit_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_app_startup_requires_explicit_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     required_environment = {
         "JEPRET_DATABASE_URL": "postgresql+asyncpg://jepret:jepret@db:5432/jepret",
         "JEPRET_PUBLIC_ORIGIN": "http://localhost:8080",
@@ -17,6 +22,7 @@ def test_app_startup_requires_explicit_environment(monkeypatch: pytest.MonkeyPat
     for name, value in required_environment.items():
         monkeypatch.setenv(name, value)
     monkeypatch.delenv("JEPRET_ENVIRONMENT", raising=False)
+    monkeypatch.chdir(tmp_path)
     get_settings.cache_clear()
 
     try:
