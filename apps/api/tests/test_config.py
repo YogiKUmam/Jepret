@@ -21,7 +21,11 @@ def test_settings_require_explicit_environment(monkeypatch: pytest.MonkeyPatch) 
         Settings(_env_file=None, **complete_settings_input())  # type: ignore[arg-type]
 
 
-def test_settings_accept_complete_development_environment() -> None:
+def test_settings_accept_complete_development_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("JEPRET_REDIS_URL", raising=False)
+
     settings = Settings(
         _env_file=None,
         environment=Environment.DEVELOPMENT,

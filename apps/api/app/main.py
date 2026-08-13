@@ -11,6 +11,7 @@ from app.api.dev_payments import router as dev_payments_router
 from app.api.payments import router as payments_router
 from app.api.profiles import router as profiles_router
 from app.api.system import router as system_router
+from app.core.config import get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import CorrelationIdMiddleware, OriginCheckMiddleware
@@ -19,6 +20,7 @@ from app.db.session import dispose_engine
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    get_settings()
     yield
     await dispose_engine()
 
