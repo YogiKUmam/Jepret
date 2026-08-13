@@ -1,6 +1,7 @@
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
 from sqlalchemy import text
@@ -8,9 +9,34 @@ from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
 from app.core.config import get_settings
 
+VALID_STARTUP_ENVIRONMENT = {
+    "JEPRET_ENVIRONMENT": "test",
+    "JEPRET_DATABASE_URL": "postgresql+asyncpg://jepret:jepret@db:5432/jepret",
+    "JEPRET_PUBLIC_ORIGIN": "http://localhost:8080",
+    "JEPRET_MINIO_ENDPOINT": "http://minio:9000",
+    "JEPRET_MINIO_ACCESS_KEY": "minioadmin",
+    "JEPRET_MINIO_SECRET_KEY": "minioadmin",
+}
+
 
 def unique_email(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}@jepret.local"
+
+
+@pytest.fixture
+def valid_startup_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> Iterator[None]:
+    for name, value in VALID_STARTUP_ENVIRONMENT.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.chdir(tmp_path)
+    get_settings.cache_clear()
+
+    try:
+        yield
+    finally:
+        get_settings.cache_clear()
 
 
 @asynccontextmanager
