@@ -70,8 +70,9 @@
     `completed`. Focused config/provider pytest lulus 30 test; integration
     booking/payment lulus 34 test dengan 1 warning deprecation upstream
     Starlette/httpx; Vitest lulus 12 test files/69 test. Focused booking E2E
-    lulus dua kali berturut-turut, masing-masing 3 test tanpa collision, dan
-    full Playwright lulus 9 test. `npm run verify` final lulus: Ruff format 55
+    lulus dua kali berturut-turut, masing-masing 3 test tanpa collision tak
+    terduga, dan full Playwright lulus 9 test. `npm run verify` final lulus:
+    Ruff format 55
     files, Ruff/ESLint, mypy 30 source files, tsc, pytest 44 passed/58
     deselected dengan 1 warning upstream, Vitest 12 files/69 test, contracts
     tanpa diff, Next.js build, dan Compose config.
