@@ -78,23 +78,40 @@ describe("BookingMasukPage", () => {
     );
   });
 
-  it("offers completion for confirmed bookings", async () => {
+  it("offers completion and payment details for confirmed bookings", async () => {
     stubFetch(incoming("confirmed"));
     renderPage();
     expect(
       await screen.findByRole("button", { name: "Tandai selesai" }),
     ).toBeVisible();
     expect(
+      screen.getByRole("link", { name: "Lihat pembayaran" }),
+    ).toHaveAttribute("href", "/booking/b9/pembayaran");
+    expect(
       screen.queryByRole("button", { name: "Terima" }),
     ).not.toBeInTheDocument();
   });
 
-  it("shows awaiting payment without a completion action", async () => {
+  it("keeps payment details available for completed bookings", async () => {
+    stubFetch(incoming("completed"));
+    renderPage();
+    expect(
+      await screen.findByRole("link", { name: "Lihat pembayaran" }),
+    ).toHaveAttribute("href", "/booking/b9/pembayaran");
+    expect(
+      screen.queryByRole("button", { name: "Tandai selesai" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows awaiting payment without creator actions", async () => {
     stubFetch(incoming("awaiting_payment"));
     renderPage();
     expect(await screen.findByText("Menunggu pembayaran")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Tandai selesai" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Lihat pembayaran" }),
     ).not.toBeInTheDocument();
   });
 });

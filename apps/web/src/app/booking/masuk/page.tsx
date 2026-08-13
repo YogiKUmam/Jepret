@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -69,14 +70,29 @@ export default function BookingMasukPage() {
                       </button>
                     </>
                   ) : booking.status === "confirmed" ? (
-                    <button
-                      type="button"
-                      onClick={() => complete.mutate(booking.id)}
-                      disabled={busy}
-                      className={`${actionClass} border border-[var(--border)]`}
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => complete.mutate(booking.id)}
+                        disabled={busy}
+                        className={`${actionClass} border border-[var(--border)]`}
+                      >
+                        Tandai selesai
+                      </button>
+                      <Link
+                        href={`/booking/${booking.id}/pembayaran`}
+                        className={`${actionClass} inline-flex items-center border border-[var(--border)]`}
+                      >
+                        Lihat pembayaran
+                      </Link>
+                    </>
+                  ) : booking.status === "completed" ? (
+                    <Link
+                      href={`/booking/${booking.id}/pembayaran`}
+                      className={`${actionClass} inline-flex items-center border border-[var(--border)]`}
                     >
-                      Tandai selesai
-                    </button>
+                      Lihat pembayaran
+                    </Link>
                   ) : null}
                 </BookingCard>
               </li>
