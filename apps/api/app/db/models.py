@@ -24,10 +24,16 @@ BOOKING_STATUSES = (
     "accepted",
     "awaiting_payment",
     "confirmed",
+    "in_progress",
+    "delivered",
     "rejected",
     "completed",
     "cancelled",
 )
+MESSAGE_TYPES: tuple[str, ...] = ("text", "attachment", "system")
+UPLOAD_PURPOSES: tuple[str, ...] = ("chat_attachment", "deliverable")
+UPLOAD_STATUSES: tuple[str, ...] = ("pending", "completed", "expired", "rejected")
+DELIVERABLE_SOURCE_TYPES: tuple[str, ...] = ("private_file", "external_link")
 PAYMENT_STATUSES = (
     "pending",
     "paid",
@@ -124,7 +130,7 @@ class Booking(TimestampMixin, Base):
         CheckConstraint(
             (
                 "status IN ('requested', 'accepted', 'awaiting_payment', 'confirmed', "
-                "'rejected', 'completed', 'cancelled')"
+                "'in_progress', 'delivered', 'rejected', 'completed', 'cancelled')"
             ),
             name="ck_booking_status_valid",
         ),
@@ -136,7 +142,10 @@ class Booking(TimestampMixin, Base):
             "creator_profile_id",
             "event_date",
             unique=True,
-            postgresql_where=text("status IN ('accepted', 'awaiting_payment', 'confirmed')"),
+            postgresql_where=text(
+                "status IN ('accepted', 'awaiting_payment', 'confirmed', "
+                "'in_progress', 'delivered')"
+            ),
         ),
     )
 
@@ -153,6 +162,8 @@ class Booking(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="requested", nullable=False)
     quoted_price_idr: Mapped[int] = mapped_column(BigInteger, nullable=False)
     responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -161,6 +172,143 @@ class Booking(TimestampMixin, Base):
     payment: Mapped["Payment | None"] = relationship(
         back_populates="booking", cascade="all, delete-orphan", single_parent=True
     )
+    conversation: Mapped["Conversation | None"] = relationship(
+        back_populates="booking", cascade="all, delete-orphan", single_parent=True
+    )
+    upload_intents: Mapped[list["UploadIntent"]] = relationship(
+        back_populates="booking", cascade="all, delete-orphan"
+    )
+    deliverables: Mapped[list["Deliverable"]] = relationship(
+        back_populates="booking", cascade="all, delete-orphan"
+    )
+
+
+class Conversation(TimestampMixin, Base):
+    __tablename__ = "conversations"
+    __table_args__ = (UniqueConstraint("booking_id", name="uq_conversation_booking"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False
+    )
+
+    booking: Mapped[Booking] = relationship(back_populates="conversation")
+    messages: Mapped[list["Message"]] = relationship(
+        back_populates="conversation", cascade="all, delete-orphan"
+    )
+
+
+class UploadIntent(TimestampMixin, Base):
+    __tablename__ = "upload_intents"
+    __table_args__ = (
+        CheckConstraint(
+            "purpose IN ('chat_attachment', 'deliverable')",
+            name="ck_upload_purpose_valid",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'completed', 'expired', 'rejected')",
+            name="ck_upload_status_valid",
+        ),
+        Index("ix_upload_intents_expiry", "status", "expires_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False
+    )
+    requested_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(30), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    booking: Mapped[Booking] = relationship(back_populates="upload_intents")
+    requested_by: Mapped[User] = relationship()
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "conversation_id",
+            "sender_user_id",
+            "client_message_id",
+            name="uq_message_client_id",
+        ),
+        CheckConstraint(
+            "message_type IN ('text', 'attachment', 'system')",
+            name="ck_message_type_valid",
+        ),
+        Index("ix_messages_conversation_created_id", "conversation_id", "created_at", "id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
+    )
+    sender_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    client_message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    message_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    upload_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("upload_intents.id"), unique=True, nullable=True
+    )
+    attachment_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    attachment_content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    attachment_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
+    sender: Mapped[User] = relationship()
+    upload: Mapped[UploadIntent | None] = relationship()
+
+
+class Deliverable(Base):
+    __tablename__ = "deliverables"
+    __table_args__ = (
+        CheckConstraint(
+            "(source_type = 'private_file' AND upload_id IS NOT NULL AND external_url IS NULL) "
+            "OR (source_type = 'external_link' AND upload_id IS NULL AND external_url IS NOT NULL)",
+            name="ck_deliverable_source_valid",
+        ),
+        Index("ix_deliverables_booking_created", "booking_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False
+    )
+    uploaded_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    upload_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("upload_intents.id"), unique=True, nullable=True
+    )
+    external_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    media_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    replaces_deliverable_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("deliverables.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    booking: Mapped[Booking] = relationship(back_populates="deliverables")
+    uploaded_by: Mapped[User] = relationship()
+    upload: Mapped[UploadIntent | None] = relationship()
+    replaces_deliverable: Mapped["Deliverable | None"] = relationship(remote_side=[id])
 
 
 class Payment(TimestampMixin, Base):
