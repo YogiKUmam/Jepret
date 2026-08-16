@@ -35,7 +35,7 @@ packages = ["app"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-m 'not integration'"
-markers = ["integration: requires the real PostgreSQL service"]
+markers = ["integration: requires real PostgreSQL and/or MinIO services"]
 
 [tool.ruff]
 line-length = 100

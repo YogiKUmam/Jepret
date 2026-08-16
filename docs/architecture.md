@@ -56,7 +56,11 @@ bentrok tanggal dijamin partial unique index `uq_bookings_accepted_date`
 
 ## Planned storage flow (fase fitur)
 
-Upload media memakai bucket privat dengan signed URL berbatas waktu yang diterbitkan API setelah authorization. Bucket publik hanya untuk aset non-sensitif. Tidak ada direct public read terhadap bucket privat.
+Upload media memakai bucket privat dengan signed URL berbatas waktu yang diterbitkan API setelah authorization. `JEPRET_MINIO_PUBLIC_ENDPOINT` adalah host MinIO yang dapat dijangkau jaringan browser dan dipakai API untuk menandatangani URL; istilah _public endpoint_ tidak berarti bucket menjadi publik. Bucket `jepret-private` tidak pernah diberi anonymous public-read policy, sedangkan CORS hanya mengizinkan origin aplikasi lokal `http://localhost:8080`.
+
+Browser wajib mengirim header `Content-Type` yang ditandatangani dan `If-None-Match: *` pada signed PUT. Header kedua menjadikan upload create-only sehingga key yang sudah ada tidak dapat ditimpa. Download bucket privat juga hanya melalui signed GET; tidak ada direct anonymous read.
+
+Image MinIO Community yang dipin belum mendukung per-bucket CORS. Compose tetap menyimpan `infra/minio/cors.xml` sebagai policy yang diinginkan dan mencoba menerapkannya, lalu menerima hanya respons `NotImplemented` yang dikenal sebelum memakai fallback server-level `MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:8080`. Fallback membatasi origin, tetapi tidak menjamin `ExposeHeader: ETag` dan `MaxAgeSeconds: 3600` dari XML. Ini tidak mengubah privasi bucket; API memeriksa ETag server-side dan browser tidak mengandalkannya. Object storage production wajib mengonfigurasi policy CORS ekuivalen secara eksplisit, termasuk method `GET`/`PUT`, kedua request header, exposed `ETag`, dan max age.
 
 ## WebSocket flow
 
@@ -66,4 +70,4 @@ Upload media memakai bucket privat dengan signed URL berbatas waktu yang diterbi
 
 **Status:** Accepted
 
-Caddy menjadi entry point tunggal agar cookie, CSRF, REST, dan WebSocket memiliki perilaku origin yang konsisten. PostgreSQL dan MinIO tetap internal; direct debug port memakai compose override eksplisit.
+Caddy menjadi entry point tunggal agar cookie, CSRF, REST, dan WebSocket memiliki perilaku origin yang konsisten. PostgreSQL tetap internal. API MinIO di-bind khusus ke loopback host untuk signed browser upload lokal; console MinIO tetap hanya tersedia melalui compose debug override.

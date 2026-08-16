@@ -25,8 +25,10 @@ services:
       JEPRET_DATABASE_URL: postgresql+asyncpg://jepret:jepret@db:5432/jepret
       JEPRET_PUBLIC_ORIGIN: http://localhost:8080
       JEPRET_MINIO_ENDPOINT: http://minio:9000
+      JEPRET_MINIO_PUBLIC_ENDPOINT: http://localhost:9000
       JEPRET_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       JEPRET_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      JEPRET_MINIO_PRIVATE_BUCKET: jepret-private
     expose: ["8000"]
     depends_on:
       db: { condition: service_healthy }
@@ -82,7 +84,9 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_API_CORS_ALLOW_ORIGIN: http://localhost:8080
     volumes: ["minio_data:/data"]
+    ports: ["127.0.0.1:9000:9000"]
     expose: ["9000", "9001"]
 
   minio-init:
@@ -91,12 +95,32 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        until mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do sleep 2; done;
+        set -eu;
+        attempt=1;
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do
+          if [ "$$attempt" -ge 30 ]; then
+            echo "MinIO did not become ready after 30 attempts." >&2;
+            exit 1;
+          fi;
+          attempt=$$((attempt + 1));
+          sleep 2;
+        done;
         mc mb --ignore-existing local/jepret-public;
-        mc mb --ignore-existing local/jepret-private
+        mc mb --ignore-existing local/jepret-private;
+        mc anonymous set none local/jepret-private;
+        cors_output=$$(mc --no-color cors set local/jepret-private /config/cors.xml 2>&1) || {
+          if [ "$$cors_output" = "mc: <ERROR> Unable to set bucket CORS configuration for local/jepret-private. A header you provided implies functionality that is not implemented." ]; then
+            echo "Per-bucket CORS is unavailable; using the restricted MinIO Community server fallback.";
+          else
+            printf '%s\n' "$$cors_output" >&2;
+            exit 1;
+          fi;
+        }
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - ./infra/minio/cors.xml:/config/cors.xml:ro
 
   redis:
     image: redis:8.8.0-alpine

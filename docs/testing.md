@@ -15,20 +15,29 @@ Seluruh perintah dijalankan dari root repository kecuali disebutkan lain.
 uv run --project apps/api pytest apps/api/tests -q
 ```
 
-Marker `integration` di-deselect secara default (`addopts = "-m 'not integration'"`). Menjalankan integration test membutuhkan PostgreSQL aktif dan environment berikut:
+Marker `integration` di-deselect secara default (`addopts = "-m 'not integration'"`). Dari clean checkout, nyalakan PostgreSQL dan MinIO, tunggu initializer bucket privat selesai, lalu isi seluruh environment berikut:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d db
+docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d db minio minio-init
+docker compose -f docker-compose.yml -f docker-compose.debug.yml wait minio-init
+docker compose -f docker-compose.yml -f docker-compose.debug.yml ps -a db minio minio-init
 $env:JEPRET_ENVIRONMENT='test'
 $env:JEPRET_DATABASE_URL='postgresql+asyncpg://jepret:jepret@localhost:15432/jepret'
 $env:JEPRET_PUBLIC_ORIGIN='http://localhost:8080'
 $env:JEPRET_MINIO_ENDPOINT='http://localhost:9000'
+$env:JEPRET_MINIO_PUBLIC_ENDPOINT='http://localhost:9000'
 $env:JEPRET_MINIO_ACCESS_KEY='minioadmin'
 $env:JEPRET_MINIO_SECRET_KEY='minioadmin'
+$env:JEPRET_MINIO_PRIVATE_BUCKET='jepret-private'
+Push-Location apps/api
+uv run alembic upgrade head
+Pop-Location
 uv run --project apps/api pytest -m integration apps/api/tests -q
 ```
 
-Catatan: menjalankan `docker compose up -d` tanpa file debug dapat me-recreate `db` dan menghapus mapping port 15432 — jalankan ulang perintah override bila koneksi ditolak.
+Perintah `wait minio-init` harus selesai dengan exit code 0; output `ps -a` harus menunjukkan `minio-init` berstatus `Exited (0)`. Signed browser PUT wajib mengirim `Content-Type` yang ditandatangani dan `If-None-Match: *` agar upload bersifat create-only.
+
+Catatan: menjalankan `docker compose up -d` tanpa file debug dapat me-recreate `db` dan menghapus mapping port 15432 — jalankan ulang perintah override bila koneksi ditolak. API MinIO tetap tersedia hanya melalui loopback `localhost:9000` pada base Compose.
 
 ## Backend static checks
 
