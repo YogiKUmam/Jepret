@@ -14,6 +14,7 @@ VALID_STARTUP_ENVIRONMENT = {
     "JEPRET_DATABASE_URL": "postgresql+asyncpg://jepret:jepret@db:5432/jepret",
     "JEPRET_PUBLIC_ORIGIN": "http://localhost:8080",
     "JEPRET_MINIO_ENDPOINT": "http://minio:9000",
+    "JEPRET_MINIO_PUBLIC_ENDPOINT": "http://localhost:9000",
     "JEPRET_MINIO_ACCESS_KEY": "minioadmin",
     "JEPRET_MINIO_SECRET_KEY": "minioadmin",
 }

@@ -18,8 +18,11 @@ class Settings(BaseSettings):
     database_url: str
     public_origin: AnyHttpUrl
     minio_endpoint: AnyHttpUrl
+    minio_public_endpoint: AnyHttpUrl
     minio_access_key: str = Field(min_length=1)
     minio_secret_key: str = Field(min_length=1)
+    minio_private_bucket: str = Field(default="jepret-private", min_length=1)
+    storage_signed_url_ttl_seconds: int = Field(default=600, ge=60, le=3600)
     redis_url: str | None = None
 
     @field_validator("public_origin", mode="before")
