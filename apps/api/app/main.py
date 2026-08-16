@@ -11,6 +11,7 @@ from app.api.dev_payments import router as dev_payments_router
 from app.api.payments import router as payments_router
 from app.api.profiles import router as profiles_router
 from app.api.system import router as system_router
+from app.api.uploads import router as uploads_router
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
     app.include_router(payments_router)
     app.include_router(dev_payments_router)
     app.include_router(admin_router)
+    app.include_router(uploads_router)
     return app
 
 

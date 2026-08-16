@@ -94,6 +94,9 @@ def clients(monkeypatch: pytest.MonkeyPatch) -> tuple[FakeS3Client, FakeS3Client
         assert kwargs["aws_access_key_id"] == "access"
         assert kwargs["aws_secret_access_key"] == "secret"
         assert kwargs["config"].s3 == {"addressing_style": "path"}
+        assert kwargs["config"].connect_timeout == 3
+        assert kwargs["config"].read_timeout == 10
+        assert kwargs["config"].retries == {"mode": "standard", "max_attempts": 2}
         assert kwargs["endpoint_url"] == next(expected_endpoints)
         return next(created_clients)
 

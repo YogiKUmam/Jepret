@@ -124,7 +124,13 @@ class Boto3StorageAdapter:
         client_options: dict[str, Any] = {
             "aws_access_key_id": access_key,
             "aws_secret_access_key": secret_key,
-            "config": Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+            "config": Config(
+                signature_version="s3v4",
+                connect_timeout=3,
+                read_timeout=10,
+                retries={"mode": "standard", "max_attempts": 2},
+                s3={"addressing_style": "path"},
+            ),
         }
         self._internal_client: Any = boto3.client(
             "s3", endpoint_url=internal_endpoint, **client_options
