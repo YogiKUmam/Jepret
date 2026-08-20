@@ -19,13 +19,17 @@ from app.core.logging import configure_logging
 from app.core.middleware import CorrelationIdMiddleware, OriginCheckMiddleware
 from app.core.rate_limit import FixedWindowRateLimiter
 from app.db.session import dispose_engine
+from app.realtime import ConnectionHub
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_settings()
-    yield
-    await dispose_engine()
+    try:
+        yield
+    finally:
+        await app.state.connection_hub.close()
+        await dispose_engine()
 
 
 def create_app() -> FastAPI:
@@ -40,6 +44,7 @@ def create_app() -> FastAPI:
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(OriginCheckMiddleware)
     install_error_handlers(app)
+    app.state.connection_hub = ConnectionHub()
     app.state.message_rate_limiter = FixedWindowRateLimiter(limit=30, window_seconds=60)
     app.state.upload_rate_limiter = FixedWindowRateLimiter(limit=10, window_seconds=60)
     app.include_router(system_router)

@@ -1,6 +1,7 @@
 import uuid
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
+from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbSession
 from app.api.schemas import (
@@ -10,7 +11,8 @@ from app.api.schemas import (
     BookingOut,
     CreateBookingRequest,
 )
-from app.db.models import Booking
+from app.db.models import Booking, Conversation
+from app.realtime import safe_broadcast
 from app.services import bookings as booking_service
 
 router = APIRouter(prefix="/api/v1/bookings", tags=["bookings"])
@@ -34,6 +36,20 @@ def _booking_out(booking: Booking) -> BookingOut:
         ),
         client_name=booking.client.full_name,
     )
+
+
+async def _broadcast_booking_update(
+    request: Request, db: DbSession, booking: Booking, data: BookingOut
+) -> None:
+    conversation_id = await db.scalar(
+        select(Conversation.id).where(Conversation.booking_id == booking.id)
+    )
+    if conversation_id is not None:
+        await safe_broadcast(
+            request,
+            conversation_id,
+            {"type": "booking.updated", "data": data.model_dump(mode="json")},
+        )
 
 
 @router.post("", response_model=BookingEnvelope, status_code=status.HTTP_201_CREATED)
@@ -71,31 +87,39 @@ async def get_booking(booking_id: uuid.UUID, user: CurrentUser, db: DbSession) -
 
 @router.post("/{booking_id}/accept", response_model=BookingEnvelope)
 async def accept_booking(
-    booking_id: uuid.UUID, user: CurrentUser, db: DbSession
+    booking_id: uuid.UUID, user: CurrentUser, db: DbSession, request: Request
 ) -> BookingEnvelope:
     booking = await booking_service.accept_booking(db, booking_id=booking_id, user=user)
-    return BookingEnvelope(data=_booking_out(booking))
+    data = _booking_out(booking)
+    await _broadcast_booking_update(request, db, booking, data)
+    return BookingEnvelope(data=data)
 
 
 @router.post("/{booking_id}/reject", response_model=BookingEnvelope)
 async def reject_booking(
-    booking_id: uuid.UUID, user: CurrentUser, db: DbSession
+    booking_id: uuid.UUID, user: CurrentUser, db: DbSession, request: Request
 ) -> BookingEnvelope:
     booking = await booking_service.reject_booking(db, booking_id=booking_id, user=user)
-    return BookingEnvelope(data=_booking_out(booking))
+    data = _booking_out(booking)
+    await _broadcast_booking_update(request, db, booking, data)
+    return BookingEnvelope(data=data)
 
 
 @router.post("/{booking_id}/complete", response_model=BookingEnvelope)
 async def complete_booking(
-    booking_id: uuid.UUID, user: CurrentUser, db: DbSession
+    booking_id: uuid.UUID, user: CurrentUser, db: DbSession, request: Request
 ) -> BookingEnvelope:
     booking = await booking_service.complete_booking(db, booking_id=booking_id, user=user)
-    return BookingEnvelope(data=_booking_out(booking))
+    data = _booking_out(booking)
+    await _broadcast_booking_update(request, db, booking, data)
+    return BookingEnvelope(data=data)
 
 
 @router.post("/{booking_id}/cancel", response_model=BookingEnvelope)
 async def cancel_booking(
-    booking_id: uuid.UUID, user: CurrentUser, db: DbSession
+    booking_id: uuid.UUID, user: CurrentUser, db: DbSession, request: Request
 ) -> BookingEnvelope:
     booking = await booking_service.cancel_booking(db, booking_id=booking_id, user=user)
-    return BookingEnvelope(data=_booking_out(booking))
+    data = _booking_out(booking)
+    await _broadcast_booking_update(request, db, booking, data)
+    return BookingEnvelope(data=data)

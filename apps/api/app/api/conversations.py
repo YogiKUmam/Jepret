@@ -1,10 +1,13 @@
+import json
 import uuid
 from typing import Annotated
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, Query, Request, WebSocket, status
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from starlette.websockets import WebSocketDisconnect
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import SESSION_COOKIE, CurrentUser, DbSession
 from app.api.workspace_schemas import (
     ConversationEnvelope,
     CreateMessageRequest,
@@ -13,11 +16,15 @@ from app.api.workspace_schemas import (
     ReadReceiptEnvelope,
     UnreadEnvelope,
 )
+from app.core.config import get_settings
 from app.core.errors import DomainError
-from app.db.session import get_session
+from app.db.models import User
+from app.db.session import get_engine, get_session
+from app.realtime import get_connection_hub, safe_broadcast
 from app.services import conversations as conversation_service
+from app.services.auth import get_user_by_session_token
 
-router = APIRouter(prefix="/api/v1", tags=["conversations"])
+router = APIRouter(tags=["conversations"])
 AuthorizationDb = Annotated[AsyncSession, Depends(get_session, use_cache=False)]
 
 
@@ -38,7 +45,7 @@ async def enforce_message_rate_limit(
 MessageRateLimit = Annotated[None, Depends(enforce_message_rate_limit)]
 
 
-@router.get("/bookings/{booking_id}/conversation", response_model=ConversationEnvelope)
+@router.get("/api/v1/bookings/{booking_id}/conversation", response_model=ConversationEnvelope)
 async def get_booking_conversation(
     booking_id: uuid.UUID, user: CurrentUser, db: DbSession
 ) -> ConversationEnvelope:
@@ -48,12 +55,12 @@ async def get_booking_conversation(
     return ConversationEnvelope(data=data)
 
 
-@router.get("/conversations/unread", response_model=UnreadEnvelope)
+@router.get("/api/v1/conversations/unread", response_model=UnreadEnvelope)
 async def get_unread(user: CurrentUser, db: DbSession) -> UnreadEnvelope:
     return UnreadEnvelope(data=await conversation_service.unread_counts(db, user=user))
 
 
-@router.get("/conversations/{conversation_id}/messages", response_model=MessagePageEnvelope)
+@router.get("/api/v1/conversations/{conversation_id}/messages", response_model=MessagePageEnvelope)
 async def get_messages(
     conversation_id: uuid.UUID,
     user: CurrentUser,
@@ -69,7 +76,7 @@ async def get_messages(
 
 
 @router.post(
-    "/conversations/{conversation_id}/messages",
+    "/api/v1/conversations/{conversation_id}/messages",
     response_model=MessageEnvelope,
     status_code=status.HTTP_201_CREATED,
 )
@@ -79,8 +86,9 @@ async def post_message(
     user: CurrentUser,
     db: DbSession,
     _: MessageRateLimit,
+    request: Request,
 ) -> MessageEnvelope:
-    data, _created = await conversation_service.create_message(
+    data, created = await conversation_service.create_message(
         db,
         conversation_id=conversation_id,
         user=user,
@@ -89,13 +97,123 @@ async def post_message(
         body=payload.body,
         upload_id=payload.upload_id,
     )
-    return MessageEnvelope(data=data)
+    response = MessageEnvelope(data=data)
+    if created:
+        await safe_broadcast(
+            request,
+            conversation_id,
+            {"type": "message.created", "data": data.model_dump(mode="json")},
+        )
+    return response
 
 
-@router.post("/conversations/{conversation_id}/read", response_model=ReadReceiptEnvelope)
+@router.post("/api/v1/conversations/{conversation_id}/read", response_model=ReadReceiptEnvelope)
 async def post_read(
-    conversation_id: uuid.UUID, user: CurrentUser, db: DbSession
+    conversation_id: uuid.UUID, user: CurrentUser, db: DbSession, request: Request
 ) -> ReadReceiptEnvelope:
-    return ReadReceiptEnvelope(
-        data=await conversation_service.mark_read(db, conversation_id=conversation_id, user=user)
+    data = await conversation_service.mark_read(db, conversation_id=conversation_id, user=user)
+    response = ReadReceiptEnvelope(data=data)
+    await safe_broadcast(
+        request,
+        conversation_id,
+        {"type": "message.read", "data": data.model_dump(mode="json")},
     )
+    return response
+
+
+def _normalized_origin(value: str) -> tuple[str, str, int] | None:
+    try:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or parsed.hostname is None
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            return None
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError:
+        return None
+    return parsed.scheme.lower(), parsed.hostname.lower(), port
+
+
+def _valid_websocket_origin(websocket: WebSocket) -> bool:
+    supplied = websocket.headers.get("origin")
+    if supplied is None:
+        return False
+    expected = _normalized_origin(str(get_settings().public_origin))
+    return expected is not None and _normalized_origin(supplied) == expected
+
+
+async def _websocket_user(websocket: WebSocket) -> User | None:
+    token = websocket.cookies.get(SESSION_COOKIE)
+    if not token:
+        return None
+    factory = async_sessionmaker(get_engine(), expire_on_commit=False)
+    async with factory() as db:
+        return await get_user_by_session_token(db, token=token)
+
+
+async def _authorize_websocket(websocket: WebSocket, conversation_id: uuid.UUID) -> bool:
+    if not _valid_websocket_origin(websocket):
+        await _deny_websocket(websocket, code=4403)
+        return False
+    user = await _websocket_user(websocket)
+    if user is None:
+        await _deny_websocket(websocket, code=4401)
+        return False
+    factory = async_sessionmaker(get_engine(), expire_on_commit=False)
+    try:
+        async with factory() as db:
+            await conversation_service.require_conversation_participant(
+                db, conversation_id=conversation_id, user=user
+            )
+    except DomainError:
+        await _deny_websocket(websocket, code=4403)
+        return False
+    return True
+
+
+async def _deny_websocket(websocket: WebSocket, *, code: int) -> None:
+    await websocket.accept()
+    await websocket.close(code=code)
+
+
+@router.websocket("/ws/conversations/{conversation_id}")
+async def conversation_websocket(websocket: WebSocket, conversation_id: uuid.UUID) -> None:
+    if not await _authorize_websocket(websocket, conversation_id):
+        return
+    hub = get_connection_hub(websocket)
+    await hub.connect(conversation_id, websocket)
+    registered = True
+    try:
+        while True:
+            frame = await websocket.receive()
+            if frame["type"] == "websocket.disconnect":
+                return
+            raw = frame.get("text")
+            if raw is None:
+                await hub.disconnect_and_close(conversation_id, websocket, code=1003)
+                registered = False
+                return
+            try:
+                payload = json.loads(raw)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                await hub.disconnect_and_close(conversation_id, websocket, code=1003)
+                registered = False
+                return
+            if payload != {"type": "ping"}:
+                await hub.disconnect_and_close(conversation_id, websocket, code=1003)
+                registered = False
+                return
+            if not await hub.send_to(conversation_id, websocket, {"type": "pong"}):
+                registered = False
+                return
+    except WebSocketDisconnect:
+        pass
+    finally:
+        if registered:
+            await hub.disconnect(conversation_id, websocket)
