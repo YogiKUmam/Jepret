@@ -70,3 +70,76 @@ class SignedUrlOut(BaseModel):
 
 class SignedUrlEnvelope(BaseModel):
     data: SignedUrlOut
+
+
+class ConversationOut(BaseModel):
+    id: uuid.UUID
+    booking_id: uuid.UUID
+    created_at: datetime
+
+
+class ConversationEnvelope(BaseModel):
+    data: ConversationOut | None
+
+
+class MessageSenderOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+
+
+class AttachmentOut(BaseModel):
+    id: uuid.UUID
+    filename: str
+    content_type: str
+    size_bytes: int
+
+
+class MessageOut(BaseModel):
+    id: uuid.UUID
+    client_message_id: uuid.UUID
+    message_type: Literal["text", "attachment", "system"]
+    body: str | None
+    attachment: AttachmentOut | None
+    sender: MessageSenderOut
+    read_at: datetime | None
+    created_at: datetime
+
+
+class CreateMessageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    client_message_id: uuid.UUID
+    message_type: Literal["text", "attachment"]
+    body: str | None = None
+    upload_id: uuid.UUID | None = None
+
+
+class MessageEnvelope(BaseModel):
+    data: MessageOut
+
+
+class MessagePageOut(BaseModel):
+    items: list[MessageOut]
+    next_cursor: str | None
+
+
+class MessagePageEnvelope(BaseModel):
+    data: MessagePageOut
+
+
+class ReadReceiptOut(BaseModel):
+    count: int
+    read_at: datetime
+
+
+class ReadReceiptEnvelope(BaseModel):
+    data: ReadReceiptOut
+
+
+class UnreadCountOut(BaseModel):
+    booking_id: uuid.UUID
+    count: int
+
+
+class UnreadEnvelope(BaseModel):
+    data: list[UnreadCountOut]

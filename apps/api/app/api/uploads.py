@@ -1,7 +1,8 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, DbSession
 from app.api.workspace_schemas import (
@@ -10,11 +11,27 @@ from app.api.workspace_schemas import (
     SignedUrlEnvelope,
     UploadEnvelope,
 )
+from app.core.errors import DomainError
+from app.db.session import get_session
 from app.integrations.storage import StorageAdapter
 from app.services import uploads as upload_service
+from app.services.workspace_access import require_booking_participant
 
 router = APIRouter(prefix="/api/v1", tags=["uploads"])
 StorageDep = Annotated[StorageAdapter, Depends(upload_service.get_storage_adapter)]
+AuthorizationDb = Annotated[AsyncSession, Depends(get_session, use_cache=False)]
+
+
+async def enforce_upload_rate_limit(
+    request: Request, booking_id: uuid.UUID, user: CurrentUser, auth_db: AuthorizationDb
+) -> None:
+    await require_booking_participant(auth_db, booking_id=booking_id, user=user)
+    limiter = request.app.state.upload_rate_limiter
+    if not await limiter.allow(f"{user.id}:{booking_id}"):
+        raise DomainError("RATE_LIMITED", "Terlalu banyak permintaan.", 429)
+
+
+UploadRateLimit = Annotated[None, Depends(enforce_upload_rate_limit)]
 
 
 @router.post(
@@ -28,6 +45,7 @@ async def create_upload(
     user: CurrentUser,
     db: DbSession,
     storage: StorageDep,
+    _: UploadRateLimit,
 ) -> SignedUploadEnvelope:
     data = await upload_service.create_intent(
         db, booking_id=booking_id, user=user, payload=payload, storage=storage

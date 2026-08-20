@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.bookings import router as bookings_router
+from app.api.conversations import router as conversations_router
 from app.api.creators import router as creators_router
 from app.api.dev_payments import router as dev_payments_router
 from app.api.payments import router as payments_router
@@ -16,6 +17,7 @@ from app.core.config import get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import CorrelationIdMiddleware, OriginCheckMiddleware
+from app.core.rate_limit import FixedWindowRateLimiter
 from app.db.session import dispose_engine
 
 
@@ -38,6 +40,8 @@ def create_app() -> FastAPI:
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(OriginCheckMiddleware)
     install_error_handlers(app)
+    app.state.message_rate_limiter = FixedWindowRateLimiter(limit=30, window_seconds=60)
+    app.state.upload_rate_limiter = FixedWindowRateLimiter(limit=10, window_seconds=60)
     app.include_router(system_router)
     app.include_router(auth_router)
     app.include_router(profiles_router)
@@ -47,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(dev_payments_router)
     app.include_router(admin_router)
     app.include_router(uploads_router)
+    app.include_router(conversations_router)
     return app
 
 
