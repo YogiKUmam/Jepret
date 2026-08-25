@@ -2,8 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Request, status
 from sqlalchemy import func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 
 from app.api.deps import CurrentUser, DbSession
 from app.api.schemas import (
@@ -24,41 +23,9 @@ from app.realtime import safe_broadcast
 from app.services import bookings as booking_service
 from app.services.conversations import _conversation_out
 from app.services.deliverables import _out as _deliverable_out
-from app.services.workspace_access import BookingAccess, booking_not_found
+from app.services.workspace_access import booking_not_found, require_booking_participant
 
 router = APIRouter(prefix="/api/v1/bookings", tags=["bookings"])
-
-
-async def require_booking_participant(
-    db: AsyncSession,
-    *,
-    booking_id: uuid.UUID,
-    user: CurrentUser,
-    lock: bool = False,
-) -> BookingAccess:
-    """Authorize and lock a workspace booking in the same participant-filtered query."""
-    if user.is_admin:
-        raise booking_not_found()
-    statement = (
-        select(Booking)
-        .join(CreatorProfile, CreatorProfile.id == Booking.creator_profile_id)
-        .where(
-            Booking.id == booking_id,
-            or_(
-                Booking.client_id == user.id,
-                CreatorProfile.user_id == user.id,
-            ),
-        )
-        .options(selectinload(Booking.creator_profile))
-    )
-    if lock:
-        statement = statement.with_for_update(of=Booking)
-    booking = await db.scalar(statement)
-    if booking is None:
-        raise booking_not_found()
-    if booking.client_id == user.id:
-        return BookingAccess(booking=booking, role="client")
-    return BookingAccess(booking=booking, role="creator")
 
 
 def _booking_out(booking: Booking) -> BookingOut:
