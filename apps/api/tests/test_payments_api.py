@@ -709,7 +709,7 @@ async def test_concurrent_create_produces_one_payment(email_cleanup: list[str]) 
     assert count == 1
 
 
-async def test_confirmed_booking_completes_only_with_held_payment(
+async def test_creator_cannot_complete_confirmed_booking_with_held_payment(
     email_cleanup: list[str],
 ) -> None:
     with TestClient(create_app()) as client:
@@ -722,11 +722,11 @@ async def test_confirmed_booking_completes_only_with_held_payment(
         assert client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid").status_code == 200
         logout(client)
         login(client, creator_email)
-        completed = client.post(f"/api/v1/bookings/{booking['id']}/complete")
+        rejected = client.post(f"/api/v1/bookings/{booking['id']}/complete")
 
-    assert completed.status_code == 200
-    assert completed.json()["data"]["status"] == "completed"
-    assert await booking_completed_at(booking["id"]) is not None
+    assert rejected.status_code == 404
+    assert rejected.json()["error"]["code"] == "NOT_FOUND"
+    assert await booking_completed_at(booking["id"]) is None
     assert (await booking_payment_state(booking["id"], payment["id"]))[2] == "held"
 
 
@@ -906,12 +906,10 @@ async def test_completion_rejects_confirmed_booking_without_held_payment(
                 text("UPDATE bookings SET status = 'confirmed' WHERE id = :id"),
                 {"id": booking["id"]},
             )
-        logout(client)
-        login(client, creator_email)
         rejected = client.post(f"/api/v1/bookings/{booking['id']}/complete")
 
     assert rejected.status_code == 409
-    assert rejected.json()["error"]["code"] == "INVALID_PAYMENT_TRANSITION"
+    assert rejected.json()["error"]["code"] == "INVALID_STATUS_TRANSITION"
     assert await booking_payment_state(booking["id"], payment["id"]) == (
         "confirmed",
         None,
@@ -929,9 +927,7 @@ async def test_completed_booking_cannot_be_cancelled(email_cleanup: list[str]) -
         login(client, client_email)
         payment = create_payment(client, booking["id"], str(uuid.uuid4())).json()["data"]
         client.post(f"/api/v1/dev/payments/{payment['id']}/simulate-paid")
-        logout(client)
-        login(client, creator_email)
-        client.post(f"/api/v1/bookings/{booking['id']}/complete")
+        await set_booking_completed(booking["id"])
         rejected = client.post(f"/api/v1/bookings/{booking['id']}/cancel")
 
     assert rejected.status_code == 409

@@ -28,6 +28,9 @@ def _booking_out(booking: Booking) -> BookingOut:
         notes=booking.notes,
         quoted_price_idr=booking.quoted_price_idr,
         created_at=booking.created_at,
+        started_at=booking.started_at,
+        delivered_at=booking.delivered_at,
+        completed_at=booking.completed_at,
         creator=BookingCreatorOut(
             id=creator.id,
             display_name=creator.display_name,
@@ -50,6 +53,22 @@ async def _broadcast_booking_update(
             conversation_id,
             {"type": "booking.updated", "data": data.model_dump(mode="json")},
         )
+
+
+async def _broadcast_lifecycle(
+    request: Request, db: DbSession, mutation: booking_service.LifecycleMutation
+) -> BookingOut:
+    data = _booking_out(mutation.booking)
+    if not mutation.changed:
+        return data
+    await _broadcast_booking_update(request, db, mutation.booking, data)
+    if mutation.conversation_id is not None and mutation.message is not None:
+        await safe_broadcast(
+            request,
+            mutation.conversation_id,
+            {"type": "message.created", "data": mutation.message.model_dump(mode="json")},
+        )
+    return data
 
 
 @router.post("", response_model=BookingEnvelope, status_code=status.HTTP_201_CREATED)
@@ -109,10 +128,25 @@ async def reject_booking(
 async def complete_booking(
     booking_id: uuid.UUID, user: CurrentUser, db: DbSession, request: Request
 ) -> BookingEnvelope:
-    booking = await booking_service.complete_booking(db, booking_id=booking_id, user=user)
-    data = _booking_out(booking)
-    await _broadcast_booking_update(request, db, booking, data)
+    mutation = await booking_service.complete_booking(db, booking_id=booking_id, user=user)
+    data = await _broadcast_lifecycle(request, db, mutation)
     return BookingEnvelope(data=data)
+
+
+@router.post("/{booking_id}/start", response_model=BookingEnvelope)
+async def start_booking(
+    booking_id: uuid.UUID, user: CurrentUser, db: DbSession, request: Request
+) -> BookingEnvelope:
+    mutation = await booking_service.start_booking(db, booking_id=booking_id, user=user)
+    return BookingEnvelope(data=await _broadcast_lifecycle(request, db, mutation))
+
+
+@router.post("/{booking_id}/deliver", response_model=BookingEnvelope)
+async def deliver_booking(
+    booking_id: uuid.UUID, user: CurrentUser, db: DbSession, request: Request
+) -> BookingEnvelope:
+    mutation = await booking_service.deliver_booking(db, booking_id=booking_id, user=user)
+    return BookingEnvelope(data=await _broadcast_lifecycle(request, db, mutation))
 
 
 @router.post("/{booking_id}/cancel", response_model=BookingEnvelope)

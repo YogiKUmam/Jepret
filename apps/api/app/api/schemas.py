@@ -117,6 +117,9 @@ class BookingOut(BaseModel):
     notes: str
     quoted_price_idr: int
     created_at: datetime
+    started_at: datetime | None
+    delivered_at: datetime | None
+    completed_at: datetime | None
     creator: BookingCreatorOut
     client_name: str
 

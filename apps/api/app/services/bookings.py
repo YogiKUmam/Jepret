@@ -1,14 +1,16 @@
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
+from app.api.workspace_schemas import MessageOut, MessageSenderOut
 from app.core.errors import DomainError
-from app.db.models import Booking, CreatorProfile, User
+from app.db.models import Booking, Conversation, CreatorProfile, Deliverable, Message, Payment, User
 from app.services import payments as payment_service
 
 ACTIVE_STATUSES = frozenset({"requested", "accepted", "awaiting_payment", "confirmed"})
@@ -17,9 +19,55 @@ _WITH_RELATIONS = (
     selectinload(Booking.client),
 )
 
+_SYSTEM_BODIES = {
+    "started": "Kreator memulai pengerjaan booking.",
+    "delivered": "Kreator mengirim hasil pekerjaan.",
+    "completed": "Klien menerima hasil pekerjaan dan menyelesaikan booking.",
+}
+
+
+@dataclass(frozen=True)
+class LifecycleMutation:
+    booking: Booking
+    conversation_id: uuid.UUID | None
+    message: MessageOut | None
+    changed: bool
+
 
 def _not_found() -> DomainError:
     return DomainError("NOT_FOUND", "Booking tidak ditemukan.", status_code=404)
+
+
+def _invalid_payment_transition() -> DomainError:
+    return DomainError(
+        "INVALID_PAYMENT_TRANSITION",
+        "Status pembayaran tidak memungkinkan aksi ini.",
+        status_code=409,
+    )
+
+
+_COMPLETION_RACE_CONSTRAINTS = frozenset({"uq_payment_event_provider_id", "uq_message_client_id"})
+
+
+def _constraint_name(error: IntegrityError) -> str | None:
+    current: BaseException | None = error
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        name = getattr(current, "constraint_name", None)
+        if isinstance(name, str):
+            return name
+        diag = getattr(current, "diag", None)
+        diag_name = getattr(diag, "constraint_name", None)
+        if isinstance(diag_name, str):
+            return diag_name
+        original = getattr(current, "orig", None)
+        current = (
+            original
+            if isinstance(original, BaseException)
+            else current.__cause__ or current.__context__
+        )
+    return None
 
 
 async def _creator_profile_of(db: AsyncSession, user: User) -> CreatorProfile | None:
@@ -108,6 +156,12 @@ async def _locked_booking(db: AsyncSession, booking_id: uuid.UUID) -> Booking:
     return booking
 
 
+async def _locked_payment(db: AsyncSession, booking: Booking) -> Payment | None:
+    return await db.scalar(
+        select(Payment).where(Payment.booking_id == booking.id).with_for_update()
+    )
+
+
 async def _require_creator(db: AsyncSession, booking: Booking, user: User) -> None:
     profile = await _creator_profile_of(db, user)
     if profile is None or booking.creator_profile_id != profile.id:
@@ -151,15 +205,197 @@ async def reject_booking(db: AsyncSession, *, booking_id: uuid.UUID, user: User)
     return await _respond(db, booking_id=booking_id, user=user, new_status="rejected")
 
 
-async def complete_booking(db: AsyncSession, *, booking_id: uuid.UUID, user: User) -> Booking:
+async def _stage_system_message(
+    db: AsyncSession, *, booking: Booking, sender: User, lifecycle: str
+) -> tuple[uuid.UUID | None, uuid.UUID | None]:
+    conversation_id = await db.scalar(
+        select(Conversation.id).where(Conversation.booking_id == booking.id)
+    )
+    if conversation_id is None:
+        return None, None
+    message = Message(
+        conversation_id=conversation_id,
+        sender_user_id=sender.id,
+        client_message_id=uuid.uuid5(
+            uuid.NAMESPACE_URL, f"jepret:booking:{booking.id}:lifecycle:{lifecycle}"
+        ),
+        message_type="system",
+        body=_SYSTEM_BODIES[lifecycle],
+    )
+    db.add(message)
+    await db.flush()
+    return conversation_id, message.id
+
+
+async def _resolved_lifecycle(
+    db: AsyncSession,
+    *,
+    booking_id: uuid.UUID,
+    user: User,
+    conversation_id: uuid.UUID | None,
+    message_id: uuid.UUID | None,
+    changed: bool,
+) -> LifecycleMutation:
+    booking = await get_for_user(db, booking_id=booking_id, user=user)
+    message_out = None
+    if message_id is not None:
+        message = await db.scalar(
+            select(Message).where(Message.id == message_id).options(joinedload(Message.sender))
+        )
+        assert message is not None
+        message_out = MessageOut(
+            id=message.id,
+            client_message_id=message.client_message_id,
+            message_type="system",
+            body=message.body,
+            attachment=None,
+            sender=MessageSenderOut(id=message.sender.id, full_name=message.sender.full_name),
+            read_at=message.read_at,
+            created_at=message.created_at,
+        )
+    return LifecycleMutation(
+        booking=booking,
+        conversation_id=conversation_id,
+        message=message_out,
+        changed=changed,
+    )
+
+
+async def _commit_lifecycle(
+    db: AsyncSession, *, booking: Booking, user: User, lifecycle: str
+) -> LifecycleMutation:
+    conversation_id, message_id = await _stage_system_message(
+        db, booking=booking, sender=user, lifecycle=lifecycle
+    )
+    await db.commit()
+    return await _resolved_lifecycle(
+        db,
+        booking_id=booking.id,
+        user=user,
+        conversation_id=conversation_id,
+        message_id=message_id,
+        changed=True,
+    )
+
+
+async def start_booking(
+    db: AsyncSession, *, booking_id: uuid.UUID, user: User
+) -> LifecycleMutation:
     booking = await _locked_booking(db, booking_id)
     await _require_creator(db, booking, user)
     _require_status(booking, frozenset({"confirmed"}))
     await payment_service.require_held_payment_for_locked_booking(db, booking)
+    booking.status = "in_progress"
+    booking.started_at = datetime.now(UTC)
+    return await _commit_lifecycle(db, booking=booking, user=user, lifecycle="started")
+
+
+async def deliver_booking(
+    db: AsyncSession, *, booking_id: uuid.UUID, user: User
+) -> LifecycleMutation:
+    booking = await _locked_booking(db, booking_id)
+    await _require_creator(db, booking, user)
+    _require_status(booking, frozenset({"in_progress"}))
+    await payment_service.require_held_payment_for_locked_booking(db, booking)
+    deliverable_count = await db.scalar(
+        select(func.count(Deliverable.id)).where(Deliverable.booking_id == booking.id)
+    )
+    if not deliverable_count:
+        raise DomainError(
+            "DELIVERABLE_REQUIRED",
+            "Tambahkan minimal satu hasil pekerjaan sebelum mengirim.",
+            status_code=409,
+        )
+    booking.status = "delivered"
+    booking.delivered_at = datetime.now(UTC)
+    return await _commit_lifecycle(db, booking=booking, user=user, lifecycle="delivered")
+
+
+async def _retry_completed_transaction(
+    db: AsyncSession,
+    *,
+    booking_id: uuid.UUID,
+    user_id: uuid.UUID,
+    event: payment_service.ProviderPaymentEvent,
+) -> LifecycleMutation:
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if user is None:
+        raise _not_found()
+    booking = await _locked_booking(db, booking_id)
+    if booking.client_id != user.id:
+        raise _not_found()
+    payment = await _locked_payment(db, booking)
+    if payment is None:
+        raise _invalid_payment_transition()
+    if booking.status == "completed" and payment.status == "released":
+        await payment_service.stage_release_for_locked_completion(
+            db, payment=payment, booking=booking, event=event
+        )
+        await db.commit()
+        return await _resolved_lifecycle(
+            db,
+            booking_id=booking.id,
+            user=user,
+            conversation_id=None,
+            message_id=None,
+            changed=False,
+        )
+    _require_status(booking, frozenset({"delivered"}))
+    if payment.status != "held":
+        raise _invalid_payment_transition()
     booking.status = "completed"
     booking.completed_at = datetime.now(UTC)
-    await db.commit()
-    return await get_for_user(db, booking_id=booking_id, user=user)
+    await payment_service.stage_release_for_locked_completion(
+        db, payment=payment, booking=booking, event=event
+    )
+    return await _commit_lifecycle(db, booking=booking, user=user, lifecycle="completed")
+
+
+async def complete_booking(
+    db: AsyncSession, *, booking_id: uuid.UUID, user: User
+) -> LifecycleMutation:
+    user_id = user.id
+    booking = await _locked_booking(db, booking_id)
+    if booking.client_id != user.id:
+        raise _not_found()
+    payment = await _locked_payment(db, booking)
+    if payment is None:
+        raise _invalid_payment_transition()
+    if booking.status == "completed" and payment.status == "released":
+        await db.commit()
+        return await _resolved_lifecycle(
+            db,
+            booking_id=booking.id,
+            user=user,
+            conversation_id=None,
+            message_id=None,
+            changed=False,
+        )
+    _require_status(booking, frozenset({"delivered"}))
+    if payment.status != "held":
+        raise _invalid_payment_transition()
+    try:
+        event = await payment_service.PROVIDER.release_payment(payment.id)
+    except Exception:
+        await db.rollback()
+        raise
+    try:
+        booking.status = "completed"
+        booking.completed_at = datetime.now(UTC)
+        _, event = await payment_service.stage_release_for_locked_completion(
+            db, payment=payment, booking=booking, event=event
+        )
+        return await _commit_lifecycle(db, booking=booking, user=user, lifecycle="completed")
+    except IntegrityError as exc:
+        await db.rollback()
+        if _constraint_name(exc) not in _COMPLETION_RACE_CONSTRAINTS:
+            raise
+        return await _retry_completed_transaction(
+            db, booking_id=booking_id, user_id=user_id, event=event
+        )
+    except Exception:
+        await db.rollback()
+        raise
 
 
 async def cancel_booking(db: AsyncSession, *, booking_id: uuid.UUID, user: User) -> Booking:

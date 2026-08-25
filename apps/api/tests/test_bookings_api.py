@@ -144,7 +144,7 @@ async def test_request_validation_rules(email_cleanup: list[str]) -> None:
     assert self_booking.json()["error"]["code"] == "CANNOT_BOOK_SELF"
 
 
-async def test_creator_cannot_complete_accepted_booking_before_payment(
+async def test_creator_cannot_complete_booking_under_client_acceptance_semantics(
     email_cleanup: list[str],
 ) -> None:
     with TestClient(create_app()) as client:
@@ -167,8 +167,8 @@ async def test_creator_cannot_complete_accepted_booking_before_payment(
     assert accepted.json()["data"]["status"] == "accepted"
     assert double_accept.status_code == 409
     assert double_accept.json()["error"]["code"] == "INVALID_STATUS_TRANSITION"
-    assert completed.status_code == 409
-    assert completed.json()["error"]["code"] == "INVALID_STATUS_TRANSITION"
+    assert completed.status_code == 404
+    assert completed.json()["error"]["code"] == "NOT_FOUND"
     assert seen_by_client.json()["data"]["status"] == "accepted"
 
 

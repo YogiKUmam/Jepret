@@ -170,16 +170,19 @@ async def _locked_payment_and_booking(
     return payment, booking
 
 
-async def _payment_id_for_event(
+async def _event_identity(
     db: AsyncSession, *, provider: str, provider_event_id: str
-) -> uuid.UUID | None:
-    result = await db.scalars(
-        select(PaymentEventModel.payment_id).where(
+) -> tuple[uuid.UUID, str] | None:
+    result = await db.execute(
+        select(PaymentEventModel.payment_id, PaymentEventModel.event_type).where(
             PaymentEventModel.provider == provider,
             PaymentEventModel.provider_event_id == provider_event_id,
         )
     )
-    return result.one_or_none()
+    identity = result.one_or_none()
+    if identity is None:
+        return None
+    return identity[0], identity[1]
 
 
 def _event_collision() -> DomainError:
@@ -246,11 +249,12 @@ async def _stage_locked_provider_event(
     provider = payment.provider
     payment_id = payment.id
 
-    event_payment_id = await _payment_id_for_event(
+    event_identity = await _event_identity(
         db, provider=provider, provider_event_id=event.provider_event_id
     )
-    if event_payment_id is not None:
-        if event_payment_id != payment_id:
+    if event_identity is not None:
+        event_payment_id, event_type = event_identity
+        if event_payment_id != payment_id or event_type != event.event_type:
             raise _event_collision()
         return payment
 
@@ -287,14 +291,15 @@ async def _persist_locked_provider_event(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        event_payment_id = await _payment_id_for_event(
+        event_identity = await _event_identity(
             db,
             provider=provider,
             provider_event_id=event.provider_event_id,
         )
-        if event_payment_id is None:
+        if event_identity is None:
             raise
-        if event_payment_id != payment_id:
+        event_payment_id, event_type = event_identity
+        if event_payment_id != payment_id or event_type != event.event_type:
             raise _event_collision() from None
         current = await _payment_by_id(db, payment_id)
         if current is None:
@@ -312,6 +317,30 @@ async def require_held_payment_for_locked_booking(db: AsyncSession, booking: Boo
     if payment is None or payment.status != "held":
         raise _invalid_transition()
     return payment
+
+
+async def stage_release_for_locked_completion(
+    db: AsyncSession,
+    *,
+    payment: Payment,
+    booking: Booking,
+    event: ProviderPaymentEvent,
+) -> tuple[Payment, ProviderPaymentEvent]:
+    """Stage a provider release inside the caller-owned completion transaction."""
+    if payment.booking_id != booking.id or booking.status != "completed":
+        raise _invalid_transition()
+    normalized = _normalize_provider_event(event)
+    if normalized.event_type != "released":
+        raise _invalid_transition()
+    staged = await _stage_locked_provider_event(
+        db,
+        payment=payment,
+        booking=booking,
+        event=normalized,
+    )
+    if staged.status != "released":
+        raise _invalid_transition()
+    return staged, normalized
 
 
 async def cancel_for_locked_booking(db: AsyncSession, booking: Booking) -> Payment | None:
