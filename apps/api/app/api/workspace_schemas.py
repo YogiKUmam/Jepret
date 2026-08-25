@@ -1,9 +1,11 @@
 import unicodedata
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator
+
+from app.api.schemas import BookingCreatorOut
 
 UploadPurpose = Literal["chat_attachment", "deliverable"]
 CanonicalContentType = Literal[
@@ -230,3 +232,61 @@ class DeliverableEnvelope(BaseModel):
 
 class DeliverableListEnvelope(BaseModel):
     data: list[DeliverableOut]
+
+
+class WorkspaceBookingOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    status: Literal[
+        "requested",
+        "accepted",
+        "awaiting_payment",
+        "confirmed",
+        "in_progress",
+        "delivered",
+        "rejected",
+        "completed",
+        "cancelled",
+    ]
+    event_date: date
+    event_city: str
+    notes: str
+    quoted_price_idr: int
+    created_at: datetime
+    started_at: datetime | None
+    delivered_at: datetime | None
+    completed_at: datetime | None
+    creator: BookingCreatorOut
+    client_name: str
+
+
+class WorkspacePaymentOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    status: Literal["pending", "paid", "held", "released", "refunded", "failed", "expired"]
+    amount_idr: int
+    platform_fee_idr: int
+    creator_net_idr: int
+    paid_at: datetime | None
+    held_at: datetime | None
+    released_at: datetime | None
+    refunded_at: datetime | None
+
+
+class WorkspaceOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["client", "creator"]
+    booking: WorkspaceBookingOut
+    conversation: ConversationOut | None
+    deliverables: list[DeliverableOut]
+    unread_count: int = Field(ge=0)
+    payment: WorkspacePaymentOut | None
+
+
+class WorkspaceEnvelope(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: WorkspaceOut

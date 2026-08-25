@@ -226,6 +226,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bookings/{booking_id}/conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Booking Conversation */
+        get: operations["get_booking_conversation_api_v1_bookings__booking_id__conversation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/deliver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deliver Booking */
+        post: operations["deliver_booking_api_v1_bookings__booking_id__deliver_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/deliverables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deliverables */
+        get: operations["get_deliverables_api_v1_bookings__booking_id__deliverables_get"];
+        put?: never;
+        /** Post Deliverable */
+        post: operations["post_deliverable_api_v1_bookings__booking_id__deliverables_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bookings/{booking_id}/payments": {
         parameters: {
             query?: never;
@@ -261,6 +313,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bookings/{booking_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Booking */
+        post: operations["start_booking_api_v1_bookings__booking_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Upload */
+        post: operations["create_upload_api_v1_bookings__booking_id__uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Booking Workspace */
+        get: operations["get_booking_workspace_api_v1_bookings__booking_id__workspace_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/unread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Unread */
+        get: operations["get_unread_api_v1_conversations_unread_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Messages */
+        get: operations["get_messages_api_v1_conversations__conversation_id__messages_get"];
+        put?: never;
+        /** Post Message */
+        post: operations["post_message_api_v1_conversations__conversation_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Read */
+        post: operations["post_read_api_v1_conversations__conversation_id__read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/creators": {
         parameters: {
             query?: never;
@@ -290,6 +445,23 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{deliverable_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Deliverable */
+        delete: operations["delete_deliverable_api_v1_deliverables__deliverable_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -397,6 +569,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/uploads/{upload_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Upload */
+        post: operations["complete_upload_api_v1_uploads__upload_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/uploads/{upload_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Download Upload */
+        post: operations["download_upload_api_v1_uploads__upload_id__download_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -435,6 +641,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AttachmentOut */
+        AttachmentOut: {
+            /** Content Type */
+            content_type: string;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Size Bytes */
+            size_bytes: number;
+        };
         /** BookingCreatorOut */
         BookingCreatorOut: {
             /** City */
@@ -462,12 +682,16 @@ export interface components {
         BookingOut: {
             /** Client Name */
             client_name: string;
+            /** Completed At */
+            completed_at: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
             creator: components["schemas"]["BookingCreatorOut"];
+            /** Delivered At */
+            delivered_at: string | null;
             /** Event City */
             event_city: string;
             /**
@@ -484,8 +708,32 @@ export interface components {
             notes: string;
             /** Quoted Price Idr */
             quoted_price_idr: number;
+            /** Started At */
+            started_at: string | null;
             /** Status */
             status: string;
+        };
+        /** ConversationEnvelope */
+        ConversationEnvelope: {
+            data: components["schemas"]["ConversationOut"] | null;
+        };
+        /** ConversationOut */
+        ConversationOut: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
         };
         /** CreateBookingRequest */
         CreateBookingRequest: {
@@ -506,6 +754,40 @@ export interface components {
              * @default
              */
             notes: string;
+        };
+        /** CreateMessageRequest */
+        CreateMessageRequest: {
+            /** Body */
+            body?: string | null;
+            /**
+             * Client Message Id
+             * Format: uuid
+             */
+            client_message_id: string;
+            /**
+             * Message Type
+             * @enum {string}
+             */
+            message_type: "text" | "attachment";
+            /** Upload Id */
+            upload_id?: string | null;
+        };
+        /** CreateUploadRequest */
+        CreateUploadRequest: {
+            /**
+             * Content Type
+             * @enum {string}
+             */
+            content_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf" | "application/zip";
+            /** Filename */
+            filename: string;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "chat_attachment" | "deliverable";
+            /** Size Bytes */
+            size_bytes: number;
         };
         /** CreatorApplicationListEnvelope */
         CreatorApplicationListEnvelope: {
@@ -597,6 +879,84 @@ export interface components {
             /** Starting Price Idr */
             starting_price_idr: number;
         };
+        /** DeliverableEnvelope */
+        DeliverableEnvelope: {
+            data: components["schemas"]["DeliverableOut"];
+        };
+        /** DeliverableListEnvelope */
+        DeliverableListEnvelope: {
+            /** Data */
+            data: components["schemas"]["DeliverableOut"][];
+        };
+        /** DeliverableOut */
+        DeliverableOut: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Content Type */
+            content_type: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string | null;
+            /** Downloadable */
+            downloadable: boolean;
+            /** External Host */
+            external_host: string | null;
+            /** External Url */
+            external_url: string | null;
+            /** Filename */
+            filename: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Media Type */
+            media_type: string | null;
+            /** Replaces Deliverable Id */
+            replaces_deliverable_id: string | null;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /**
+             * Source Type
+             * @enum {string}
+             */
+            source_type: "private_file" | "external_link";
+            /** Title */
+            title: string;
+            /** Upload Id */
+            upload_id: string | null;
+            /**
+             * Uploaded By User Id
+             * Format: uuid
+             */
+            uploaded_by_user_id: string;
+        };
+        /** ExternalDeliverableRequest */
+        ExternalDeliverableRequest: {
+            /** Description */
+            description?: string | null;
+            /**
+             * External Url
+             * Format: uri
+             */
+            external_url: string;
+            /** Replaces Deliverable Id */
+            replaces_deliverable_id?: string | null;
+            /**
+             * Source Type
+             * @constant
+             */
+            source_type: "external_link";
+            /** Title */
+            title: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -609,12 +969,55 @@ export interface components {
             /** Password */
             password: string;
         };
-        /** MessageEnvelope */
-        MessageEnvelope: {
-            /** Data */
-            data: {
-                [key: string]: string;
-            };
+        /** MessageOut */
+        MessageOut: {
+            attachment: components["schemas"]["AttachmentOut"] | null;
+            /** Body */
+            body: string | null;
+            /**
+             * Client Message Id
+             * Format: uuid
+             */
+            client_message_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Message Type
+             * @enum {string}
+             */
+            message_type: "text" | "attachment" | "system";
+            /** Read At */
+            read_at: string | null;
+            sender: components["schemas"]["MessageSenderOut"];
+        };
+        /** MessagePageEnvelope */
+        MessagePageEnvelope: {
+            data: components["schemas"]["MessagePageOut"];
+        };
+        /** MessagePageOut */
+        MessagePageOut: {
+            /** Items */
+            items: components["schemas"]["MessageOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** MessageSenderOut */
+        MessageSenderOut: {
+            /** Full Name */
+            full_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
         };
         /** MockPaymentWebhookRequest */
         MockPaymentWebhookRequest: {
@@ -665,6 +1068,39 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** PrivateDeliverableRequest */
+        PrivateDeliverableRequest: {
+            /** Description */
+            description?: string | null;
+            /** Replaces Deliverable Id */
+            replaces_deliverable_id?: string | null;
+            /**
+             * Source Type
+             * @constant
+             */
+            source_type: "private_file";
+            /** Title */
+            title: string;
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+        };
+        /** ReadReceiptEnvelope */
+        ReadReceiptEnvelope: {
+            data: components["schemas"]["ReadReceiptOut"];
+        };
+        /** ReadReceiptOut */
+        ReadReceiptOut: {
+            /** Count */
+            count: number;
+            /**
+             * Read At
+             * Format: date-time
+             */
+            read_at: string;
+        };
         /** RegisterRequest */
         RegisterRequest: {
             /** Email */
@@ -674,10 +1110,116 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** SignedUploadEnvelope */
+        SignedUploadEnvelope: {
+            data: components["schemas"]["SignedUploadOut"];
+        };
+        /** SignedUploadOut */
+        SignedUploadOut: {
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Content Type
+             * @enum {string}
+             */
+            content_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf" | "application/zip";
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "chat_attachment" | "deliverable";
+            /** Required Headers */
+            required_headers: {
+                [key: string]: string;
+            };
+            /** Size Bytes */
+            size_bytes: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "completed" | "expired" | "rejected";
+            /** Upload Url */
+            upload_url: string;
+        };
+        /** SignedUrlEnvelope */
+        SignedUrlEnvelope: {
+            data: components["schemas"]["SignedUrlOut"];
+        };
+        /** SignedUrlOut */
+        SignedUrlOut: {
+            /** Url */
+            url: string;
+        };
+        /** UnreadCountOut */
+        UnreadCountOut: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Count */
+            count: number;
+        };
+        /** UnreadEnvelope */
+        UnreadEnvelope: {
+            /** Data */
+            data: components["schemas"]["UnreadCountOut"][];
+        };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
             /** Full Name */
             full_name: string;
+        };
+        /** UploadEnvelope */
+        UploadEnvelope: {
+            data: components["schemas"]["UploadOut"];
+        };
+        /** UploadOut */
+        UploadOut: {
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Content Type
+             * @enum {string}
+             */
+            content_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf" | "application/zip";
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "chat_attachment" | "deliverable";
+            /** Size Bytes */
+            size_bytes: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "completed" | "expired" | "rejected";
         };
         /** UserEnvelope */
         UserEnvelope: {
@@ -710,6 +1252,101 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** WorkspaceBookingOut */
+        WorkspaceBookingOut: {
+            /** Client Name */
+            client_name: string;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            creator: components["schemas"]["BookingCreatorOut"];
+            /** Delivered At */
+            delivered_at: string | null;
+            /** Event City */
+            event_city: string;
+            /**
+             * Event Date
+             * Format: date
+             */
+            event_date: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Notes */
+            notes: string;
+            /** Quoted Price Idr */
+            quoted_price_idr: number;
+            /** Started At */
+            started_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "requested" | "accepted" | "awaiting_payment" | "confirmed" | "in_progress" | "delivered" | "rejected" | "completed" | "cancelled";
+        };
+        /** WorkspaceEnvelope */
+        WorkspaceEnvelope: {
+            data: components["schemas"]["WorkspaceOut"];
+        };
+        /** WorkspaceOut */
+        WorkspaceOut: {
+            booking: components["schemas"]["WorkspaceBookingOut"];
+            conversation: components["schemas"]["ConversationOut"] | null;
+            /** Deliverables */
+            deliverables: components["schemas"]["DeliverableOut"][];
+            payment: components["schemas"]["WorkspacePaymentOut"] | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "client" | "creator";
+            /** Unread Count */
+            unread_count: number;
+        };
+        /** WorkspacePaymentOut */
+        WorkspacePaymentOut: {
+            /** Amount Idr */
+            amount_idr: number;
+            /** Creator Net Idr */
+            creator_net_idr: number;
+            /** Held At */
+            held_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Paid At */
+            paid_at: string | null;
+            /** Platform Fee Idr */
+            platform_fee_idr: number;
+            /** Refunded At */
+            refunded_at: string | null;
+            /** Released At */
+            released_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "paid" | "held" | "released" | "refunded" | "failed" | "expired";
+        };
+        /** MessageEnvelope */
+        app__api__schemas__MessageEnvelope: {
+            /** Data */
+            data: {
+                [key: string]: string;
+            };
+        };
+        /** MessageEnvelope */
+        app__api__workspace_schemas__MessageEnvelope: {
+            data: components["schemas"]["MessageOut"];
         };
     };
     responses: never;
@@ -850,7 +1487,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageEnvelope"];
+                    "application/json": components["schemas"]["app__api__schemas__MessageEnvelope"];
                 };
             };
         };
@@ -1105,6 +1742,134 @@ export interface operations {
             };
         };
     };
+    get_booking_conversation_api_v1_bookings__booking_id__conversation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliver_booking_api_v1_bookings__booking_id__deliver_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deliverables_api_v1_bookings__booking_id__deliverables_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableListEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_deliverable_api_v1_bookings__booking_id__deliverables_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrivateDeliverableRequest"] | components["schemas"]["ExternalDeliverableRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_payment_api_v1_bookings__booking_id__payments_get: {
         parameters: {
             query?: never;
@@ -1200,6 +1965,223 @@ export interface operations {
             };
         };
     };
+    start_booking_api_v1_bookings__booking_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_upload_api_v1_bookings__booking_id__uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedUploadEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_workspace_api_v1_bookings__booking_id__workspace_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_unread_api_v1_conversations_unread_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadEnvelope"];
+                };
+            };
+        };
+    };
+    get_messages_api_v1_conversations__conversation_id__messages_get: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePageEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_message_api_v1_conversations__conversation_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__workspace_schemas__MessageEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_read_api_v1_conversations__conversation_id__read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadReceiptEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_creators_api_v1_creators_get: {
         parameters: {
             query?: {
@@ -1256,6 +2238,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CreatorPublicEnvelope"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_deliverable_api_v1_deliverables__deliverable_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliverable_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1447,6 +2458,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatorProfileEnvelope"];
+                };
+            };
+        };
+    };
+    complete_upload_api_v1_uploads__upload_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_upload_api_v1_uploads__upload_id__download_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedUrlEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

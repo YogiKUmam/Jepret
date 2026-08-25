@@ -1,6 +1,35 @@
 {
   "components": {
     "schemas": {
+      "AttachmentOut": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "content_type",
+          "size_bytes"
+        ],
+        "title": "AttachmentOut",
+        "type": "object"
+      },
       "BookingCreatorOut": {
         "properties": {
           "city": {
@@ -64,6 +93,18 @@
             "title": "Client Name",
             "type": "string"
           },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -71,6 +112,18 @@
           },
           "creator": {
             "$ref": "#/components/schemas/BookingCreatorOut"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
           },
           "event_city": {
             "title": "Event City",
@@ -94,6 +147,18 @@
             "title": "Quoted Price Idr",
             "type": "integer"
           },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -107,10 +172,58 @@
           "notes",
           "quoted_price_idr",
           "created_at",
+          "started_at",
+          "delivered_at",
+          "completed_at",
           "creator",
           "client_name"
         ],
         "title": "BookingOut",
+        "type": "object"
+      },
+      "ConversationEnvelope": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ConversationEnvelope",
+        "type": "object"
+      },
+      "ConversationOut": {
+        "properties": {
+          "booking_id": {
+            "format": "uuid",
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "booking_id",
+          "created_at"
+        ],
+        "title": "ConversationOut",
         "type": "object"
       },
       "CreateBookingRequest": {
@@ -144,6 +257,95 @@
           "event_city"
         ],
         "title": "CreateBookingRequest",
+        "type": "object"
+      },
+      "CreateMessageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "client_message_id": {
+            "format": "uuid",
+            "title": "Client Message Id",
+            "type": "string"
+          },
+          "message_type": {
+            "enum": [
+              "text",
+              "attachment"
+            ],
+            "title": "Message Type",
+            "type": "string"
+          },
+          "upload_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload Id"
+          }
+        },
+        "required": [
+          "client_message_id",
+          "message_type"
+        ],
+        "title": "CreateMessageRequest",
+        "type": "object"
+      },
+      "CreateUploadRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content_type": {
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "application/pdf",
+              "application/zip"
+            ],
+            "title": "Content Type",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "chat_attachment",
+              "deliverable"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "size_bytes": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 104857600.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purpose",
+          "filename",
+          "content_type",
+          "size_bytes"
+        ],
+        "title": "CreateUploadRequest",
         "type": "object"
       },
       "CreatorApplicationListEnvelope": {
@@ -398,6 +600,248 @@
         "title": "CreatorPublicOut",
         "type": "object"
       },
+      "DeliverableEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeliverableOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "DeliverableEnvelope",
+        "type": "object"
+      },
+      "DeliverableListEnvelope": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableOut"
+            },
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "DeliverableListEnvelope",
+        "type": "object"
+      },
+      "DeliverableOut": {
+        "properties": {
+          "booking_id": {
+            "format": "uuid",
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "downloadable": {
+            "title": "Downloadable",
+            "type": "boolean"
+          },
+          "external_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Host"
+          },
+          "external_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Url"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "media_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Type"
+          },
+          "replaces_deliverable_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Deliverable Id"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "source_type": {
+            "enum": [
+              "private_file",
+              "external_link"
+            ],
+            "title": "Source Type",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "upload_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload Id"
+          },
+          "uploaded_by_user_id": {
+            "format": "uuid",
+            "title": "Uploaded By User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "booking_id",
+          "uploaded_by_user_id",
+          "title",
+          "description",
+          "source_type",
+          "upload_id",
+          "external_url",
+          "external_host",
+          "media_type",
+          "filename",
+          "content_type",
+          "size_bytes",
+          "replaces_deliverable_id",
+          "downloadable",
+          "created_at"
+        ],
+        "title": "DeliverableOut",
+        "type": "object"
+      },
+      "ExternalDeliverableRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "external_url": {
+            "format": "uri",
+            "minLength": 1,
+            "title": "External Url",
+            "type": "string"
+          },
+          "replaces_deliverable_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Deliverable Id"
+          },
+          "source_type": {
+            "const": "external_link",
+            "title": "Source Type",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "source_type",
+          "external_url"
+        ],
+        "title": "ExternalDeliverableRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -433,20 +877,139 @@
         "title": "LoginRequest",
         "type": "object"
       },
-      "MessageEnvelope": {
+      "MessageOut": {
+        "properties": {
+          "attachment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttachmentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "client_message_id": {
+            "format": "uuid",
+            "title": "Client Message Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "message_type": {
+            "enum": [
+              "text",
+              "attachment",
+              "system"
+            ],
+            "title": "Message Type",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/MessageSenderOut"
+          }
+        },
+        "required": [
+          "id",
+          "client_message_id",
+          "message_type",
+          "body",
+          "attachment",
+          "sender",
+          "read_at",
+          "created_at"
+        ],
+        "title": "MessageOut",
+        "type": "object"
+      },
+      "MessagePageEnvelope": {
         "properties": {
           "data": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Data",
-            "type": "object"
+            "$ref": "#/components/schemas/MessagePageOut"
           }
         },
         "required": [
           "data"
         ],
-        "title": "MessageEnvelope",
+        "title": "MessagePageEnvelope",
+        "type": "object"
+      },
+      "MessagePageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MessageOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "MessagePageOut",
+        "type": "object"
+      },
+      "MessageSenderOut": {
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "full_name"
+        ],
+        "title": "MessageSenderOut",
         "type": "object"
       },
       "MockPaymentWebhookRequest": {
@@ -587,6 +1150,89 @@
         "title": "PaymentOut",
         "type": "object"
       },
+      "PrivateDeliverableRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "replaces_deliverable_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Deliverable Id"
+          },
+          "source_type": {
+            "const": "private_file",
+            "title": "Source Type",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "upload_id": {
+            "format": "uuid",
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "source_type",
+          "upload_id"
+        ],
+        "title": "PrivateDeliverableRequest",
+        "type": "object"
+      },
+      "ReadReceiptEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReadReceiptOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ReadReceiptEnvelope",
+        "type": "object"
+      },
+      "ReadReceiptOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "read_at": {
+            "format": "date-time",
+            "title": "Read At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "read_at"
+        ],
+        "title": "ReadReceiptOut",
+        "type": "object"
+      },
       "RegisterRequest": {
         "properties": {
           "email": {
@@ -616,6 +1262,166 @@
         "title": "RegisterRequest",
         "type": "object"
       },
+      "SignedUploadEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SignedUploadOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SignedUploadEnvelope",
+        "type": "object"
+      },
+      "SignedUploadOut": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "content_type": {
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "application/pdf",
+              "application/zip"
+            ],
+            "title": "Content Type",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "chat_attachment",
+              "deliverable"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "required_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Required Headers",
+            "type": "object"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "completed",
+              "expired",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "upload_url": {
+            "title": "Upload Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "purpose",
+          "filename",
+          "content_type",
+          "size_bytes",
+          "status",
+          "expires_at",
+          "completed_at",
+          "upload_url",
+          "required_headers"
+        ],
+        "title": "SignedUploadOut",
+        "type": "object"
+      },
+      "SignedUrlEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SignedUrlOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SignedUrlEnvelope",
+        "type": "object"
+      },
+      "SignedUrlOut": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "SignedUrlOut",
+        "type": "object"
+      },
+      "UnreadCountOut": {
+        "properties": {
+          "booking_id": {
+            "format": "uuid",
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "booking_id",
+          "count"
+        ],
+        "title": "UnreadCountOut",
+        "type": "object"
+      },
+      "UnreadEnvelope": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/UnreadCountOut"
+            },
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "UnreadEnvelope",
+        "type": "object"
+      },
       "UpdateProfileRequest": {
         "properties": {
           "full_name": {
@@ -629,6 +1435,93 @@
           "full_name"
         ],
         "title": "UpdateProfileRequest",
+        "type": "object"
+      },
+      "UploadEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UploadOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "UploadEnvelope",
+        "type": "object"
+      },
+      "UploadOut": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "content_type": {
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "application/pdf",
+              "application/zip"
+            ],
+            "title": "Content Type",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "chat_attachment",
+              "deliverable"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "completed",
+              "expired",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "purpose",
+          "filename",
+          "content_type",
+          "size_bytes",
+          "status",
+          "expires_at",
+          "completed_at"
+        ],
+        "title": "UploadOut",
         "type": "object"
       },
       "UserEnvelope": {
@@ -720,6 +1613,307 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkspaceBookingOut": {
+        "additionalProperties": false,
+        "properties": {
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/BookingCreatorOut"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
+          },
+          "event_city": {
+            "title": "Event City",
+            "type": "string"
+          },
+          "event_date": {
+            "format": "date",
+            "title": "Event Date",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "quoted_price_idr": {
+            "title": "Quoted Price Idr",
+            "type": "integer"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "enum": [
+              "requested",
+              "accepted",
+              "awaiting_payment",
+              "confirmed",
+              "in_progress",
+              "delivered",
+              "rejected",
+              "completed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "event_date",
+          "event_city",
+          "notes",
+          "quoted_price_idr",
+          "created_at",
+          "started_at",
+          "delivered_at",
+          "completed_at",
+          "creator",
+          "client_name"
+        ],
+        "title": "WorkspaceBookingOut",
+        "type": "object"
+      },
+      "WorkspaceEnvelope": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WorkspaceOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "WorkspaceEnvelope",
+        "type": "object"
+      },
+      "WorkspaceOut": {
+        "additionalProperties": false,
+        "properties": {
+          "booking": {
+            "$ref": "#/components/schemas/WorkspaceBookingOut"
+          },
+          "conversation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deliverables": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableOut"
+            },
+            "title": "Deliverables",
+            "type": "array"
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspacePaymentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "enum": [
+              "client",
+              "creator"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "unread_count": {
+            "minimum": 0.0,
+            "title": "Unread Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "role",
+          "booking",
+          "conversation",
+          "deliverables",
+          "unread_count",
+          "payment"
+        ],
+        "title": "WorkspaceOut",
+        "type": "object"
+      },
+      "WorkspacePaymentOut": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_idr": {
+            "title": "Amount Idr",
+            "type": "integer"
+          },
+          "creator_net_idr": {
+            "title": "Creator Net Idr",
+            "type": "integer"
+          },
+          "held_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid At"
+          },
+          "platform_fee_idr": {
+            "title": "Platform Fee Idr",
+            "type": "integer"
+          },
+          "refunded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refunded At"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "paid",
+              "held",
+              "released",
+              "refunded",
+              "failed",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "amount_idr",
+          "platform_fee_idr",
+          "creator_net_idr",
+          "paid_at",
+          "held_at",
+          "released_at",
+          "refunded_at"
+        ],
+        "title": "WorkspacePaymentOut",
+        "type": "object"
+      },
+      "app__api__schemas__MessageEnvelope": {
+        "properties": {
+          "data": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Data",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "MessageEnvelope",
+        "type": "object"
+      },
+      "app__api__workspace_schemas__MessageEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MessageOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "MessageEnvelope",
         "type": "object"
       }
     }
@@ -886,7 +2080,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageEnvelope"
+                  "$ref": "#/components/schemas/app__api__schemas__MessageEnvelope"
                 }
               }
             },
@@ -1214,6 +2408,194 @@
         ]
       }
     },
+    "/api/v1/bookings/{booking_id}/conversation": {
+      "get": {
+        "operationId": "get_booking_conversation_api_v1_bookings__booking_id__conversation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Booking Conversation",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/api/v1/bookings/{booking_id}/deliver": {
+      "post": {
+        "operationId": "deliver_booking_api_v1_bookings__booking_id__deliver_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deliver Booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/bookings/{booking_id}/deliverables": {
+      "get": {
+        "operationId": "get_deliverables_api_v1_bookings__booking_id__deliverables_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableListEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Deliverables",
+        "tags": [
+          "deliverables"
+        ]
+      },
+      "post": {
+        "operationId": "post_deliverable_api_v1_bookings__booking_id__deliverables_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PrivateDeliverableRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ExternalDeliverableRequest"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Deliverable",
+        "tags": [
+          "deliverables"
+        ]
+      }
+    },
     "/api/v1/bookings/{booking_id}/payments": {
       "get": {
         "operationId": "get_payment_api_v1_bookings__booking_id__payments_get",
@@ -1354,6 +2736,332 @@
         "summary": "Reject Booking",
         "tags": [
           "bookings"
+        ]
+      }
+    },
+    "/api/v1/bookings/{booking_id}/start": {
+      "post": {
+        "operationId": "start_booking_api_v1_bookings__booking_id__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/bookings/{booking_id}/uploads": {
+      "post": {
+        "operationId": "create_upload_api_v1_bookings__booking_id__uploads_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedUploadEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Upload",
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/api/v1/bookings/{booking_id}/workspace": {
+      "get": {
+        "operationId": "get_booking_workspace_api_v1_bookings__booking_id__workspace_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Booking Workspace",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/conversations/unread": {
+      "get": {
+        "operationId": "get_unread_api_v1_conversations_unread_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Unread",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages": {
+      "get": {
+        "operationId": "get_messages_api_v1_conversations__conversation_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePageEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Messages",
+        "tags": [
+          "conversations"
+        ]
+      },
+      "post": {
+        "operationId": "post_message_api_v1_conversations__conversation_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__api__workspace_schemas__MessageEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Message",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/read": {
+      "post": {
+        "operationId": "post_read_api_v1_conversations__conversation_id__read_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadReceiptEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Read",
+        "tags": [
+          "conversations"
         ]
       }
     },
@@ -1544,6 +3252,42 @@
         "summary": "Get Creator",
         "tags": [
           "creators"
+        ]
+      }
+    },
+    "/api/v1/deliverables/{deliverable_id}": {
+      "delete": {
+        "operationId": "delete_deliverable_api_v1_deliverables__deliverable_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deliverable_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Deliverable Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Deliverable",
+        "tags": [
+          "deliverables"
         ]
       }
     },
@@ -1785,6 +3529,92 @@
         "summary": "Submit Creator",
         "tags": [
           "profiles"
+        ]
+      }
+    },
+    "/api/v1/uploads/{upload_id}/complete": {
+      "post": {
+        "operationId": "complete_upload_api_v1_uploads__upload_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Upload",
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/api/v1/uploads/{upload_id}/download": {
+      "post": {
+        "operationId": "download_upload_api_v1_uploads__upload_id__download_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedUrlEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Upload",
+        "tags": [
+          "uploads"
         ]
       }
     },

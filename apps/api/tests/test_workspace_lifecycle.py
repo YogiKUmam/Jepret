@@ -1,23 +1,26 @@
 import asyncio
+import threading
 import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select, text
+from sqlalchemy import event, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.api import bookings as bookings_api
 from app.core.config import get_settings
 from app.core.errors import DomainError
-from app.db.models import Booking, Message, Payment, PaymentEvent, User
+from app.db.models import Booking, Conversation, Message, Payment, PaymentEvent, User
+from app.db.session import get_engine, get_session
 from app.integrations.payments import MockPaymentProvider
 from app.integrations.payments import PaymentEvent as ProviderPaymentEvent
 from app.main import create_app
 from app.realtime import ConnectionHub
 from app.services import bookings as booking_service
 from app.services import payments as payment_service
-from tests.conftest import fresh_connection, unique_email
+from tests.conftest import fresh_connection, make_admin, unique_email
 
 pytestmark = pytest.mark.integration
 
@@ -305,6 +308,18 @@ def add_deliverable(client: TestClient, booking_id: str) -> None:
     assert response.status_code == 201, response.text
 
 
+def add_named_deliverable(client: TestClient, booking_id: str, title: str, suffix: str) -> None:
+    response = client.post(
+        f"/api/v1/bookings/{booking_id}/deliverables",
+        json={
+            "source_type": "external_link",
+            "title": title,
+            "external_url": f"https://example.com/gallery/{suffix}",
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
 async def database_state(booking_id: str) -> tuple[str, str, int, int]:
     async with fresh_connection() as connection:
         booking_status = await connection.scalar(
@@ -336,6 +351,348 @@ async def database_state(booking_id: str) -> tuple[str, str, int, int]:
         int(release_events or 0),
         int(system_messages or 0),
     )
+
+
+async def test_workspace_contract_is_sanitized_authorized_and_has_no_n_plus_one(
+    email_cleanup: list[str],
+) -> None:
+    app = create_app()
+    request_select_counts: list[int] = []
+
+    async def counted_session():  # type: ignore[no-untyped-def]
+        factory = async_sessionmaker(get_engine(), expire_on_commit=False)
+        async with factory() as session:
+            connection = await session.connection()
+            statements: list[str] = []
+
+            def record_statement(
+                _connection: object,
+                _cursor: object,
+                statement: str,
+                _parameters: object,
+                _context: object,
+                _executemany: bool,
+            ) -> None:
+                if statement.lstrip().upper().startswith("SELECT"):
+                    statements.append(statement)
+
+            event.listen(connection.sync_connection, "before_cursor_execute", record_statement)
+            try:
+                yield session
+            finally:
+                event.remove(
+                    connection.sync_connection,
+                    "before_cursor_execute",
+                    record_statement,
+                )
+                request_select_counts.append(len(statements))
+
+    app.dependency_overrides[get_session] = counted_session
+    with TestClient(app) as client:
+        booking_id, _, client_email, creator_email = await held_workspace(
+            client, email_cleanup, name="Studio Aggregate"
+        )
+        logout(client)
+        login(client, creator_email)
+        assert client.post(f"/api/v1/bookings/{booking_id}/start").status_code == 200
+        add_named_deliverable(client, booking_id, "Galeri B", "b")
+        add_named_deliverable(client, booking_id, "Galeri A", "a")
+        conversation = client.get(f"/api/v1/bookings/{booking_id}/conversation").json()["data"]
+        assert conversation is not None
+        message = client.post(
+            f"/api/v1/conversations/{conversation['id']}/messages",
+            json={
+                "client_message_id": str(uuid.uuid4()),
+                "message_type": "text",
+                "body": "Hasil siap diperiksa.",
+            },
+        )
+        assert message.status_code == 201, message.text
+
+        creator_workspace = client.get(f"/api/v1/bookings/{booking_id}/workspace")
+        assert creator_workspace.status_code == 200, creator_workspace.text
+        assert creator_workspace.json()["data"]["role"] == "creator"
+        assert creator_workspace.json()["data"]["unread_count"] == 0
+
+        logout(client)
+        login(client, client_email)
+        response = client.get(f"/api/v1/bookings/{booking_id}/workspace")
+        small_workspace_selects = request_select_counts[-1]
+
+        assert response.status_code == 200, response.text
+        data = response.json()["data"]
+        assert data["role"] == "client"
+        assert data["booking"]["id"] == booking_id
+        assert data["booking"]["status"] == "in_progress"
+        assert data["booking"]["started_at"] is not None
+        assert data["conversation"] == conversation
+        assert [item["title"] for item in data["deliverables"]] == ["Galeri B", "Galeri A"]
+        assert data["unread_count"] == 2
+        assert set(data["payment"]) == {
+            "id",
+            "status",
+            "amount_idr",
+            "platform_fee_idr",
+            "creator_net_idr",
+            "paid_at",
+            "held_at",
+            "released_at",
+            "refunded_at",
+        }
+        assert data["payment"]["status"] == "held"
+        assert small_workspace_selects == 5
+        for forbidden in (
+            "object_key",
+            "raw_metadata",
+            "provider",
+            "provider_reference",
+            "idempotency_key",
+            "signed_url",
+            "upload_url",
+            "download_url",
+        ):
+            assert forbidden not in response.text
+
+        outsider_email = register(client, email_cleanup, "Orang Luar")
+        outsider = client.get(f"/api/v1/bookings/{booking_id}/workspace")
+        assert outsider.status_code == 404
+        assert outsider.json()["error"]["code"] == "BOOKING_NOT_FOUND"
+        await make_admin(outsider_email)
+        admin = client.get(f"/api/v1/bookings/{booking_id}/workspace")
+        assert admin.status_code == 404
+        assert admin.json()["error"]["code"] == "BOOKING_NOT_FOUND"
+
+        logout(client)
+        login(client, creator_email)
+        for index in range(20):
+            add_named_deliverable(
+                client,
+                booking_id,
+                f"Galeri tambahan {index:02d}",
+                f"tambahan-{index:02d}",
+            )
+        logout(client)
+        login(client, client_email)
+        larger_workspace = client.get(f"/api/v1/bookings/{booking_id}/workspace")
+        assert larger_workspace.status_code == 200, larger_workspace.text
+        assert len(larger_workspace.json()["data"]["deliverables"]) == 22
+        assert request_select_counts[-1] == small_workspace_selects
+        assert request_select_counts[-1] == 5
+
+
+async def test_workspace_holds_authorization_lock_until_aggregate_finishes(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = create_app()
+    access_locked = threading.Event()
+    release_access = threading.Event()
+    original_access = bookings_api.require_booking_participant
+
+    async def pause_after_access(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        access = await original_access(*args, **kwargs)  # type: ignore[arg-type]
+        access_locked.set()
+        await asyncio.to_thread(release_access.wait)
+        return access
+
+    monkeypatch.setattr(bookings_api, "require_booking_participant", pause_after_access)
+    update_task: asyncio.Task[object] | None = None
+    request_task: asyncio.Task[object] | None = None
+    with TestClient(app) as client:
+        booking_id, _, client_email, _ = await held_workspace(
+            client,
+            email_cleanup,
+            name="Studio Lock Workspace",
+            create_conversation=False,
+        )
+        logout(client)
+        outsider_email = register(client, email_cleanup, "Pengguna Pengganti")
+        async with fresh_connection() as connection:
+            outsider_id = await connection.scalar(
+                select(User.id).where(User.email == outsider_email)
+            )
+        assert outsider_id is not None
+        logout(client)
+        login(client, client_email)
+
+        engine = create_async_engine(get_settings().database_url, poolclass=None)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with factory() as competitor, factory() as probe:
+                waiter_pid = await competitor.scalar(text("SELECT pg_backend_pid()"))
+                assert waiter_pid is not None
+                request_task = asyncio.create_task(
+                    asyncio.to_thread(
+                        client.get,
+                        f"/api/v1/bookings/{booking_id}/workspace",
+                    )
+                )
+                assert await asyncio.to_thread(access_locked.wait, 5)
+                update_task = asyncio.create_task(
+                    competitor.execute(
+                        text("UPDATE bookings SET client_id=:client_id WHERE id=:booking_id"),
+                        {
+                            "client_id": outsider_id,
+                            "booking_id": uuid.UUID(booking_id),
+                        },
+                    )
+                )
+
+                async with asyncio.timeout(5):
+                    while True:
+                        if update_task.done():
+                            await update_task
+                            pytest.fail("perubahan peserta tidak diblokir oleh workspace lock")
+                        blockers = await probe.scalar(
+                            text("SELECT pg_blocking_pids(:waiter_pid)"),
+                            {"waiter_pid": waiter_pid},
+                        )
+                        if blockers:
+                            break
+
+                release_access.set()
+                response = await asyncio.wait_for(request_task, timeout=5)
+                assert response.status_code == 200, response.text  # type: ignore[attr-defined]
+                data = response.json()["data"]  # type: ignore[attr-defined]
+                assert data["role"] == "client"
+                assert data["booking"]["id"] == booking_id
+                assert "raw_metadata" not in response.text  # type: ignore[attr-defined]
+                await asyncio.wait_for(update_task, timeout=5)
+                await competitor.rollback()
+        finally:
+            release_access.set()
+            pending = [
+                task for task in (request_task, update_task) if task is not None and not task.done()
+            ]
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            await engine.dispose()
+
+
+@pytest.mark.parametrize("as_admin", [False, True], ids=["outsider", "admin"])
+async def test_workspace_nonparticipant_denial_does_not_lock_booking(
+    email_cleanup: list[str], monkeypatch: pytest.MonkeyPatch, as_admin: bool
+) -> None:
+    app = create_app()
+    denial_reached = threading.Event()
+    release_denial = threading.Event()
+    original_access = bookings_api.require_booking_participant
+
+    async def pause_after_denial(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        try:
+            return await original_access(*args, **kwargs)  # type: ignore[arg-type]
+        except DomainError:
+            denial_reached.set()
+            await asyncio.to_thread(release_denial.wait)
+            raise
+
+    monkeypatch.setattr(bookings_api, "require_booking_participant", pause_after_denial)
+    request_task: asyncio.Task[object] | None = None
+    update_task: asyncio.Task[object] | None = None
+    with TestClient(app) as client:
+        booking_id, _, client_email, _ = await held_workspace(
+            client,
+            email_cleanup,
+            name="Studio Outsider Lock",
+            create_conversation=False,
+        )
+        logout(client)
+        nonparticipant_email = register(client, email_cleanup, "Orang Luar Tanpa Lock")
+        if as_admin:
+            await make_admin(nonparticipant_email)
+
+        engine = create_async_engine(get_settings().database_url, poolclass=None)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with factory() as legitimate_update, factory() as probe:
+                waiter_pid = await legitimate_update.scalar(text("SELECT pg_backend_pid()"))
+                assert waiter_pid is not None
+                request_task = asyncio.create_task(
+                    asyncio.to_thread(
+                        client.get,
+                        f"/api/v1/bookings/{booking_id}/workspace",
+                    )
+                )
+                assert await asyncio.to_thread(denial_reached.wait, 5)
+                update_task = asyncio.create_task(
+                    legitimate_update.execute(
+                        text("UPDATE bookings SET event_city=:event_city WHERE id=:booking_id"),
+                        {
+                            "event_city": "Bandung tetap dapat diperbarui",
+                            "booking_id": uuid.UUID(booking_id),
+                        },
+                    )
+                )
+                async with asyncio.timeout(5):
+                    while not update_task.done():
+                        blockers = await probe.scalar(
+                            text("SELECT pg_blocking_pids(:waiter_pid)"),
+                            {"waiter_pid": waiter_pid},
+                        )
+                        if blockers:
+                            release_denial.set()
+                            await asyncio.wait_for(request_task, timeout=5)
+                            await asyncio.wait_for(update_task, timeout=5)
+                            await legitimate_update.rollback()
+                            pytest.fail("penolakan outsider mengunci booking yang dikenal")
+                await update_task
+                await legitimate_update.rollback()
+
+                release_denial.set()
+                response = await asyncio.wait_for(request_task, timeout=5)
+                assert response.status_code == 404  # type: ignore[attr-defined]
+                assert response.json()["error"]["code"] == "BOOKING_NOT_FOUND"  # type: ignore[attr-defined]
+
+                logout(client)
+                login(client, client_email)
+                participant = client.get(f"/api/v1/bookings/{booking_id}/workspace")
+                assert participant.status_code == 200, participant.text
+        finally:
+            release_denial.set()
+            pending = [
+                task for task in (request_task, update_task) if task is not None and not task.done()
+            ]
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            await engine.dispose()
+
+
+async def test_workspace_does_not_create_conversation_for_preconfirmed_terminal_booking(
+    email_cleanup: list[str],
+) -> None:
+    with TestClient(create_app()) as client:
+        creator_email, profile_id = await make_creator(
+            client, email_cleanup, "Studio Tanpa Percakapan"
+        )
+        client_email = register(client, email_cleanup, "Klien Tanpa Percakapan")
+        booking = client.post(
+            "/api/v1/bookings",
+            json={
+                "creator_id": profile_id,
+                "event_date": (datetime.now(UTC).date() + timedelta(days=120)).isoformat(),
+                "event_city": "Bandung",
+                "notes": "Tidak dikonfirmasi.",
+            },
+        ).json()["data"]
+        logout(client)
+        login(client, creator_email)
+        assert client.post(f"/api/v1/bookings/{booking['id']}/reject").status_code == 200
+        logout(client)
+        login(client, client_email)
+
+        response = client.get(f"/api/v1/bookings/{booking['id']}/workspace")
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["conversation"] is None
+        async with fresh_connection() as connection:
+            conversation_count = await connection.scalar(
+                select(func.count(Conversation.id)).where(
+                    Conversation.booking_id == uuid.UUID(booking["id"])
+                )
+            )
+        assert conversation_count == 0
 
 
 async def wait_for_pg_blocker(*, waiter_pid: int, holder_pid: int) -> None:

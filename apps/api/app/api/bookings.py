@@ -1,7 +1,9 @@
 import uuid
 
 from fastapi import APIRouter, Request, status
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.deps import CurrentUser, DbSession
 from app.api.schemas import (
@@ -11,11 +13,52 @@ from app.api.schemas import (
     BookingOut,
     CreateBookingRequest,
 )
-from app.db.models import Booking, Conversation
+from app.api.workspace_schemas import (
+    WorkspaceBookingOut,
+    WorkspaceEnvelope,
+    WorkspaceOut,
+    WorkspacePaymentOut,
+)
+from app.db.models import Booking, Conversation, CreatorProfile, Deliverable, Message, Payment
 from app.realtime import safe_broadcast
 from app.services import bookings as booking_service
+from app.services.conversations import _conversation_out
+from app.services.deliverables import _out as _deliverable_out
+from app.services.workspace_access import BookingAccess, booking_not_found
 
 router = APIRouter(prefix="/api/v1/bookings", tags=["bookings"])
+
+
+async def require_booking_participant(
+    db: AsyncSession,
+    *,
+    booking_id: uuid.UUID,
+    user: CurrentUser,
+    lock: bool = False,
+) -> BookingAccess:
+    """Authorize and lock a workspace booking in the same participant-filtered query."""
+    if user.is_admin:
+        raise booking_not_found()
+    statement = (
+        select(Booking)
+        .join(CreatorProfile, CreatorProfile.id == Booking.creator_profile_id)
+        .where(
+            Booking.id == booking_id,
+            or_(
+                Booking.client_id == user.id,
+                CreatorProfile.user_id == user.id,
+            ),
+        )
+        .options(selectinload(Booking.creator_profile))
+    )
+    if lock:
+        statement = statement.with_for_update(of=Booking)
+    booking = await db.scalar(statement)
+    if booking is None:
+        raise booking_not_found()
+    if booking.client_id == user.id:
+        return BookingAccess(booking=booking, role="client")
+    return BookingAccess(booking=booking, role="creator")
 
 
 def _booking_out(booking: Booking) -> BookingOut:
@@ -102,6 +145,77 @@ async def list_incoming_bookings(user: CurrentUser, db: DbSession) -> BookingLis
 async def get_booking(booking_id: uuid.UUID, user: CurrentUser, db: DbSession) -> BookingEnvelope:
     booking = await booking_service.get_for_user(db, booking_id=booking_id, user=user)
     return BookingEnvelope(data=_booking_out(booking))
+
+
+@router.get("/{booking_id}/workspace", response_model=WorkspaceEnvelope)
+async def get_booking_workspace(
+    booking_id: uuid.UUID, user: CurrentUser, db: DbSession
+) -> WorkspaceEnvelope:
+    access = await require_booking_participant(
+        db,
+        booking_id=booking_id,
+        user=user,
+        lock=True,
+    )
+    unread_count = (
+        select(func.count(Message.id))
+        .where(
+            Message.conversation_id == Conversation.id,
+            Message.sender_user_id != user.id,
+            Message.read_at.is_(None),
+        )
+        .correlate(Conversation)
+        .scalar_subquery()
+    )
+    rows = (
+        await db.execute(
+            select(Booking, Conversation, Deliverable, Payment, unread_count)
+            .join(CreatorProfile, CreatorProfile.id == Booking.creator_profile_id)
+            .outerjoin(Conversation, Conversation.booking_id == Booking.id)
+            .outerjoin(Deliverable, Deliverable.booking_id == Booking.id)
+            .outerjoin(Payment, Payment.booking_id == Booking.id)
+            .where(
+                Booking.id == booking_id,
+                or_(
+                    Booking.client_id == user.id,
+                    CreatorProfile.user_id == user.id,
+                ),
+            )
+            .options(joinedload(Booking.client), joinedload(Booking.creator_profile))
+            .order_by(
+                Deliverable.created_at.asc().nulls_last(),
+                Deliverable.id.asc().nulls_last(),
+            )
+        )
+    ).all()
+    if not rows:
+        raise booking_not_found()
+    booking, conversation, _, payment, count = rows[0]
+    public_booking = _booking_out(booking)
+    deliverables = [_deliverable_out(row[2]) for row in rows if row[2] is not None]
+    payment_summary = None
+    if payment is not None:
+        payment_summary = WorkspacePaymentOut(
+            id=payment.id,
+            status=payment.status,  # type: ignore[arg-type]
+            amount_idr=payment.amount_idr,
+            platform_fee_idr=payment.platform_fee_idr,
+            creator_net_idr=payment.creator_net_idr,
+            paid_at=payment.paid_at,
+            held_at=payment.held_at,
+            released_at=payment.released_at,
+            refunded_at=payment.refunded_at,
+        )
+    return WorkspaceEnvelope(
+        data=WorkspaceOut(
+            role=access.role,
+            booking=WorkspaceBookingOut(**public_booking.model_dump()),
+            conversation=_conversation_out(conversation) if conversation is not None else None,
+            deliverables=deliverables,
+            unread_count=int(count or 0),
+            payment=payment_summary,
+        )
+    )
 
 
 @router.post("/{booking_id}/accept", response_model=BookingEnvelope)
