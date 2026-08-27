@@ -12,6 +12,8 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   accepted: "Diterima",
   awaiting_payment: "Menunggu pembayaran",
   confirmed: "Terkonfirmasi",
+  in_progress: "Sedang berlangsung",
+  delivered: "Hasil dikirim",
   rejected: "Ditolak",
   completed: "Selesai",
   cancelled: "Dibatalkan",
@@ -22,6 +24,8 @@ export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
   "accepted",
   "awaiting_payment",
   "confirmed",
+  "in_progress",
+  "delivered",
 ];
 
 export interface CreateBookingInput {
@@ -59,7 +63,8 @@ export function useCreateBooking() {
   });
 }
 
-type BookingAction = "accept" | "reject" | "complete" | "cancel";
+type BookingAction =
+  "accept" | "reject" | "start" | "deliver" | "complete" | "cancel";
 
 export function useBookingAction(action: BookingAction) {
   const queryClient = useQueryClient();

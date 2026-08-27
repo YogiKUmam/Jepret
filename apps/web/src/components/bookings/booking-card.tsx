@@ -7,6 +7,8 @@ const STATUS_CLASS: Record<BookingStatus, string> = {
   accepted: "bg-[#2f6b4f] text-white",
   awaiting_payment: "bg-[#7b5b12] text-white",
   confirmed: "bg-[#5b4a86] text-white",
+  in_progress: "bg-[#386a73] text-white",
+  delivered: "bg-[#5a6378] text-white",
   rejected: "bg-[#7a3b3b] text-white",
   completed: "bg-[#3b5a7a] text-white",
   cancelled: "bg-[var(--border)] text-[var(--foreground)]",
