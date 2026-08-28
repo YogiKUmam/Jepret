@@ -292,7 +292,7 @@ test("client pays an accepted booking and opens the workspace", async ({
   const confirmedCard = bookingCard(page, bookingNote, "Terkonfirmasi");
   await confirmedCard.getByRole("link", { name: "Buka ruang kerja" }).click();
   await expect(page).toHaveURL(/\/booking\/[^/]+$/);
-  await expect(page.getByText("Terkonfirmasi")).toBeVisible();
+  await expect(page.getByText("Terkonfirmasi").first()).toBeVisible();
 });
 
 test("cancelling a paid booking refunds the payment", async ({ page }) => {

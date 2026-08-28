@@ -164,7 +164,7 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
   await expect(clientPage).toHaveURL(/\/booking\/[^/]+$/);
 
   const workspaceUrl = clientPage.url();
-  await expect(clientPage.getByText("Terkonfirmasi")).toBeVisible();
+  await expect(clientPage.getByText("Terkonfirmasi").first()).toBeVisible();
 
   // 5. Client sends chat message
   const chatMessage = `Mohon foto keluarga juga (${crypto.randomUUID().slice(0, 6)}).`;
@@ -187,7 +187,7 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
 
   // 7. Creator starts session
   await creatorPage.getByRole("button", { name: "Mulai sesi" }).click();
-  await expect(creatorPage.getByText("Sesi Berlangsung")).toBeVisible();
+  await expect(creatorPage.getByText("Sesi Berlangsung").first()).toBeVisible();
 
   // 8. Creator uploads a deliverable file & adds external link
   await creatorPage.getByRole("tab", { name: "Hasil" }).click();
@@ -212,7 +212,7 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
 
   // 9. Creator delivers results
   await creatorPage.getByRole("button", { name: "Kirim hasil" }).click();
-  await expect(creatorPage.getByText("Hasil Dikirim")).toBeVisible();
+  await expect(creatorPage.getByText("Hasil Dikirim").first()).toBeVisible();
 
   // 10. Client verifies deliverables and accepts
   await clientPage.reload();
@@ -225,7 +225,7 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
   await dialog.getByRole("button", { name: "Ya, terima hasil" }).click();
 
   // 11. Completion and payment release verified
-  await expect(clientPage.getByText("Selesai")).toBeVisible();
+  await expect(clientPage.getByText("Selesai").first()).toBeVisible();
   await clientPage.getByRole("link", { name: "Lihat pembayaran" }).click();
   await expect(clientPage.getByText("Pembayaran telah dilepas")).toBeVisible();
 

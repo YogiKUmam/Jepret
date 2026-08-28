@@ -28,7 +28,7 @@ test.describe("Phase 7 Governance, Reviews & Disputes", () => {
     await expect(
       page.getByText(/total gross merchandise value/i),
     ).toBeVisible();
-    await expect(page.getByText(/verifikasi kreator/i)).toBeVisible();
+    await expect(page.getByText(/verifikasi kreator/i).first()).toBeVisible();
     await expect(page.getByText(/sengketa aktif/i)).toBeVisible();
 
     // Navigate to creator verification tab
@@ -44,9 +44,9 @@ test.describe("Phase 7 Governance, Reviews & Disputes", () => {
     ).toBeVisible();
   });
 
-  test("non-admin user is redirected away from /admin", async ({ page }) => {
+  test("non-admin user is blocked from /admin", async ({ page }) => {
     await login(page, CLIENT);
     await page.goto("/admin");
-    await expect(page).toHaveURL(/\/masuk$/);
+    await expect(page.getByText(/akses ditolak/i)).toBeVisible();
   });
 });
