@@ -49,7 +49,9 @@ export function ConversationPanel({
 
   const [text, setText] = useState("");
   const [pendingUpload, setPendingUpload] = useState<Upload | null>(null);
-  const [activeAttempt, setActiveAttempt] = useState<SendMessageAttempt | null>(null);
+  const [activeAttempt, setActiveAttempt] = useState<SendMessageAttempt | null>(
+    null,
+  );
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -123,7 +125,9 @@ export function ConversationPanel({
     <div className="flex flex-col rounded-3xl border border-[var(--border)] bg-[var(--background)] p-4 text-[var(--foreground)] sm:p-6">
       {/* Realtime status banner */}
       <div role="status" aria-live="polite" className="sr-only">
-        {connected ? "Terhubung ke percakapan." : "Koneksi terputus, memperbarui berkala…"}
+        {connected
+          ? "Terhubung ke percakapan."
+          : "Koneksi terputus, memperbarui berkala…"}
       </div>
 
       {!connected ? (
@@ -145,7 +149,8 @@ export function ConversationPanel({
           </div>
         ) : messages.length === 0 ? (
           <div className="flex h-48 items-center justify-center text-center text-sm text-[var(--muted)]">
-            Belum ada pesan. Mulai percakapan mengenai jadwal dan detail pemotretan.
+            Belum ada pesan. Mulai percakapan mengenai jadwal dan detail
+            pemotretan.
           </div>
         ) : (
           <ul className="list-none space-y-3 p-0 m-0">
@@ -167,7 +172,9 @@ export function ConversationPanel({
                     }`}
                   >
                     {msg.message_type === "text" && msg.body ? (
-                      <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+                      <p className="whitespace-pre-wrap break-words">
+                        {msg.body}
+                      </p>
                     ) : null}
 
                     {msg.attachment ? (
@@ -182,11 +189,15 @@ export function ConversationPanel({
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleDownloadAttachment(msg.attachment!.id)}
+                          onClick={() =>
+                            handleDownloadAttachment(msg.attachment!.id)
+                          }
                           disabled={downloadingId === msg.attachment.id}
                           className="inline-flex min-h-9 items-center justify-center rounded-lg border border-current/30 px-2.5 text-xs font-medium transition active:scale-[0.98]"
                         >
-                          {downloadingId === msg.attachment.id ? "Memuat…" : "Unduh"}
+                          {downloadingId === msg.attachment.id
+                            ? "Memuat…"
+                            : "Unduh"}
                         </button>
                       </div>
                     ) : null}

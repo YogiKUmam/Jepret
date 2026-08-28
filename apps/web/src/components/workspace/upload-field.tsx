@@ -28,7 +28,9 @@ export function UploadField({
 }: UploadFieldProps) {
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number>(0);
-  const [status, setStatus] = useState<"idle" | "uploading" | "error" | "success">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "uploading" | "error" | "success"
+  >("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);

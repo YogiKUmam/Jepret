@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -181,7 +187,12 @@ function stubWorkspacePage({
           Promise.resolve(
             workspace !== null
               ? { data: workspace }
-              : { error: { code: "NOT_FOUND", message: "Workspace tidak ditemukan." } },
+              : {
+                  error: {
+                    code: "NOT_FOUND",
+                    message: "Workspace tidak ditemukan.",
+                  },
+                },
           ),
       });
     }
@@ -208,14 +219,18 @@ function stubWorkspacePage({
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ data: { items: messages, next_cursor: null } }),
+        json: () =>
+          Promise.resolve({ data: { items: messages, next_cursor: null } }),
       });
     }
     if (url.includes("/conversations/conv-1/read")) {
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ data: { count: 0, read_at: "2026-08-01T11:00:00Z" } }),
+        json: () =>
+          Promise.resolve({
+            data: { count: 0, read_at: "2026-08-01T11:00:00Z" },
+          }),
       });
     }
     if (url.endsWith("/bookings/b1/deliverables")) {
@@ -333,7 +348,9 @@ describe("WorkspacePage", () => {
     });
     renderWorkspace();
 
-    const startButton = await screen.findByRole("button", { name: "Mulai sesi" });
+    const startButton = await screen.findByRole("button", {
+      name: "Mulai sesi",
+    });
     expect(startButton).toBeEnabled();
 
     await user.click(startButton);
@@ -355,7 +372,9 @@ describe("WorkspacePage", () => {
     });
     renderWorkspace();
 
-    const deliverButton = await screen.findByRole("button", { name: "Kirim hasil" });
+    const deliverButton = await screen.findByRole("button", {
+      name: "Kirim hasil",
+    });
     expect(deliverButton).toBeEnabled();
 
     await user.click(deliverButton);
@@ -368,12 +387,16 @@ describe("WorkspacePage", () => {
   it("disables deliver button for creator when in_progress but deliverables list is empty", async () => {
     stubWorkspacePage({
       me: CREATOR_USER,
-      workspace: sampleWorkspace("creator", "in_progress", { deliverables: [] }),
+      workspace: sampleWorkspace("creator", "in_progress", {
+        deliverables: [],
+      }),
       deliverables: [],
     });
     renderWorkspace();
 
-    const deliverButton = await screen.findByRole("button", { name: "Kirim hasil" });
+    const deliverButton = await screen.findByRole("button", {
+      name: "Kirim hasil",
+    });
     expect(deliverButton).toBeDisabled();
   });
 
@@ -389,7 +412,9 @@ describe("WorkspacePage", () => {
     });
     renderWorkspace();
 
-    const acceptButton = await screen.findByRole("button", { name: "Terima hasil" });
+    const acceptButton = await screen.findByRole("button", {
+      name: "Terima hasil",
+    });
     expect(acceptButton).toBeEnabled();
 
     await user.click(acceptButton);
@@ -491,11 +516,17 @@ describe("WorkspacePage", () => {
       }),
       deliverables: [fileDeliverable],
       customHandler: (url, init) => {
-        if (url.endsWith("/uploads/upl-100/download") && init?.method === "POST") {
+        if (
+          url.endsWith("/uploads/upl-100/download") &&
+          init?.method === "POST"
+        ) {
           return Promise.resolve({
             ok: true,
             status: 200,
-            json: () => Promise.resolve({ data: { url: "https://minio.local/signed-download" } }),
+            json: () =>
+              Promise.resolve({
+                data: { url: "https://minio.local/signed-download" },
+              }),
           });
         }
         return undefined as any;

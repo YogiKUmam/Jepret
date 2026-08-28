@@ -154,7 +154,9 @@ export function DeliverablesPanel({
                       <h3 className="font-semibold">{item.title}</h3>
                     </div>
                     {item.description ? (
-                      <p className="text-xs text-[var(--muted)]">{item.description}</p>
+                      <p className="text-xs text-[var(--muted)]">
+                        {item.description}
+                      </p>
                     ) : null}
                     <div className="text-xs text-[var(--muted)]">
                       {isFile ? (
@@ -182,7 +184,9 @@ export function DeliverablesPanel({
                         disabled={downloadingId === item.upload_id}
                         className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--primary)] px-4 text-xs font-medium text-[var(--primary-foreground)] transition active:scale-[0.98] disabled:opacity-60"
                       >
-                        {downloadingId === item.upload_id ? "Memuat…" : "Unduh berkas"}
+                        {downloadingId === item.upload_id
+                          ? "Memuat…"
+                          : "Unduh berkas"}
                       </button>
                     ) : !isFile && item.external_url ? (
                       <a
@@ -288,7 +292,11 @@ export function DeliverablesPanel({
                 <UploadField
                   bookingId={bookingId}
                   purpose="deliverable"
-                  label={uploadedFile ? `Berkas terpilih: ${uploadedFile.filename}` : "Pilih berkas foto/ZIP"}
+                  label={
+                    uploadedFile
+                      ? `Berkas terpilih: ${uploadedFile.filename}`
+                      : "Pilih berkas foto/ZIP"
+                  }
                   onUploaded={(upload) => {
                     setUploadedFile(upload);
                     setFormError(null);
@@ -298,10 +306,14 @@ export function DeliverablesPanel({
 
               <button
                 type="submit"
-                disabled={!uploadedFile || !title.trim() || createDeliverable.isPending}
+                disabled={
+                  !uploadedFile || !title.trim() || createDeliverable.isPending
+                }
                 className="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--primary)] px-5 text-sm font-medium text-[var(--primary-foreground)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {createDeliverable.isPending ? "Menyimpan…" : "Simpan Berkas Hasil"}
+                {createDeliverable.isPending
+                  ? "Menyimpan…"
+                  : "Simpan Berkas Hasil"}
               </button>
             </form>
           ) : (
@@ -349,10 +361,16 @@ export function DeliverablesPanel({
 
               <button
                 type="submit"
-                disabled={!externalUrl.trim() || !title.trim() || createDeliverable.isPending}
+                disabled={
+                  !externalUrl.trim() ||
+                  !title.trim() ||
+                  createDeliverable.isPending
+                }
                 className="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--primary)] px-5 text-sm font-medium text-[var(--primary-foreground)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {createDeliverable.isPending ? "Menyimpan…" : "Simpan Tautan Hasil"}
+                {createDeliverable.isPending
+                  ? "Menyimpan…"
+                  : "Simpan Tautan Hasil"}
               </button>
             </form>
           )}

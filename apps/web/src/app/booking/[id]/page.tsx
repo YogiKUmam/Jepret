@@ -97,9 +97,12 @@ export default function WorkspacePage() {
         <AppHeader />
         <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 text-center">
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--background)] p-8">
-            <h1 className="font-serif text-2xl font-bold">Ruang Kerja Tidak Ditemukan</h1>
+            <h1 className="font-serif text-2xl font-bold">
+              Ruang Kerja Tidak Ditemukan
+            </h1>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Ruang kerja booking belum tersedia atau Anda tidak memiliki akses ke pesanan ini.
+              Ruang kerja booking belum tersedia atau Anda tidak memiliki akses
+              ke pesanan ini.
             </p>
             <button
               type="button"
@@ -226,11 +229,16 @@ export default function WorkspacePage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
         >
           <div className="w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--background)] p-6 shadow-2xl space-y-4">
-            <h2 id="confirm-modal-title" className="font-serif text-xl font-bold">
+            <h2
+              id="confirm-modal-title"
+              className="font-serif text-xl font-bold"
+            >
               Konfirmasi Penerimaan Hasil
             </h2>
             <p className="text-sm text-[var(--muted)] leading-relaxed">
-              Apakah Anda sudah puas dengan berkas dan hasil pekerjaan ini? Setelah dikonfirmasi, pembayaran akan diteruskan ke kreator dan pesanan dinyatakan selesai secara resmi.
+              Apakah Anda sudah puas dengan berkas dan hasil pekerjaan ini?
+              Setelah dikonfirmasi, pembayaran akan diteruskan ke kreator dan
+              pesanan dinyatakan selesai secara resmi.
             </p>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3 pt-2">
               <button

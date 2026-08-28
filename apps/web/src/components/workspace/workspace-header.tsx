@@ -62,8 +62,7 @@ export function WorkspaceHeader({
   const hasDeliverables = deliverables && deliverables.length > 0;
 
   const canStart = role === "creator" && booking.status === "confirmed";
-  const canDeliver =
-    role === "creator" && booking.status === "in_progress";
+  const canDeliver = role === "creator" && booking.status === "in_progress";
   const canAccept = role === "client" && booking.status === "delivered";
 
   return (
@@ -139,13 +138,19 @@ export function WorkspaceHeader({
       </div>
 
       {actionError ? (
-        <p role="alert" className="mt-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500">
+        <p
+          role="alert"
+          className="mt-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-500"
+        >
           {actionError}
         </p>
       ) : null}
 
       {/* Progress timeline */}
-      <nav aria-label="Status Progres Booking" className="mt-6 border-t border-[var(--border)] pt-4">
+      <nav
+        aria-label="Status Progres Booking"
+        className="mt-6 border-t border-[var(--border)] pt-4"
+      >
         <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {ORDERED_STATUSES.map((statusKey, index) => {
             const isCurrent = booking.status === statusKey;

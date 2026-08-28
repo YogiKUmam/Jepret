@@ -29,6 +29,8 @@ const BLOCKING_BOOKING_STATUSES: ReadonlySet<BookingStatus> = new Set([
   "accepted",
   "awaiting_payment",
   "confirmed",
+  "in_progress",
+  "delivered",
 ]);
 const EVENT_DATE_CANDIDATE_COUNT = 730;
 const MAX_BOOKING_ATTEMPTS = 5;
@@ -277,27 +279,20 @@ test("recovers when the first booking date becomes unavailable", async ({
   await cancelAcceptedBooking(page, recovered.bookingNote);
 });
 
-test("client pays an accepted booking and the creator releases it", async ({
+test("client pays an accepted booking and opens the workspace", async ({
   page,
 }) => {
   const { bookingNote } = await requestAndAcceptBooking(
     page,
-    `E2E release ${crypto.randomUUID()}`,
+    `E2E confirmed ${crypto.randomUUID()}`,
   );
   await payBooking(page, bookingNote);
 
-  await logout(page);
-  await login(page, CREATOR);
-  await page.goto("/booking/masuk");
-  const incoming = bookingCard(page, bookingNote, "Terkonfirmasi");
-  await incoming.getByRole("button", { name: "Tandai selesai" }).click();
-  const completed = bookingCard(page, bookingNote, "Selesai");
-  await expect(completed).toBeVisible();
-
-  await completed.getByRole("link", { name: "Lihat pembayaran" }).click();
-  await expect(page).toHaveURL(/\/booking\/[^/]+\/pembayaran$/);
-  await page.getByRole("button", { name: "Simulasikan pencairan" }).click();
-  await expect(page.getByText("Pembayaran telah dilepas")).toBeVisible();
+  await page.goto("/booking");
+  const confirmedCard = bookingCard(page, bookingNote, "Terkonfirmasi");
+  await confirmedCard.getByRole("link", { name: "Buka ruang kerja" }).click();
+  await expect(page).toHaveURL(/\/booking\/[^/]+$/);
+  await expect(page.getByText("Terkonfirmasi")).toBeVisible();
 });
 
 test("cancelling a paid booking refunds the payment", async ({ page }) => {
