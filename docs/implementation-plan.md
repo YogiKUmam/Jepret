@@ -77,6 +77,28 @@
     deselected dengan 1 warning upstream, Vitest 12 files/69 test, contracts
     tanpa diff, Next.js build, dan Compose config.
 
-- [ ] Phase 6 — Chat dan deliverables
+- [x] Phase 6 — Chat dan deliverables
+
+  **Bukti verifikasi (2026-08-28, mesin lokal Windows):**
+
+  - Migration `20260816_0006` (tabel `conversations`, `messages`, `uploads`,
+    `deliverables`, serta kolom timestamp booking `session_started_at`,
+    `delivered_at`, `completed_at`).
+  - Storage adapter MinIO: upload intent bertanda tangan (pre-signed PUT create-only
+    dengan `If-None-Match: *`), MIME magic bytes validation server-side, dan
+    download authorization berbatas waktu (pre-signed GET).
+  - In-process real-time broadcast hub: koneksi WebSocket terautentikasi (`/ws/conversations/{id}`)
+    dengan auto-reconnect backoff dan fallback keyset cursor polling pada client.
+  - Lifecycle workspace: alur status `confirmed` → `in_progress` → `delivered` → `completed`
+    dengan pelepasan pembayaran otomatis (`released`) terverifikasi.
+  - Komponen workspace frontend: `WorkspaceHeader`, `UploadField`, `ConversationPanel`,
+    `DeliverablesPanel`, dan halaman `/booking/[id]`.
+  - Backend unit & integration test: pytest 99 passed (storage adapter, rate limiter,
+    schema, bookings, payments, uploads, conversations, deliverables, lifecycle).
+  - Frontend component test: Vitest 15 test files / 129 passed.
+  - OpenAPI contracts check: 0 diff pada `openapi.json` & `schema.d.ts`.
+  - `npm run verify` hijau penuh (formatcheck, lint, typecheck mypy 41 files & tsc,
+    test pytest 99 + vitest 129, contracts check, Next.js build).
+
 - [ ] Phase 7 — Completion, reviews, disputes, admin
 - [ ] Phase 8 — Hardening

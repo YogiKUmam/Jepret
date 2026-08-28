@@ -12,6 +12,7 @@ test-results/
 .venv/
 __pycache__/
 .pytest_cache/
+.pytest_temp/
 .mypy_cache/
 .ruff_cache/
 *.pyc

@@ -46,25 +46,47 @@ keyset `reviewed_at DESC, id DESC` dengan cursor base64url) dan
 
 Klien mengajukan booking (`POST /api/v1/bookings`) ke kreator `approved` dengan
 tanggal masa depan; harga di-snapshot dari `starting_price_idr`. Status:
-`requested → accepted|rejected`, lalu `accepted → completed|cancelled`
-(`requested → cancelled` juga sah). Kreator merespons via
-`/bookings/{id}/{accept,reject,complete}`; klien maupun kreator dapat
-`cancel` selama belum terminal. Semua transisi memakai `SELECT ... FOR UPDATE`;
+`requested → accepted|rejected`, lalu `accepted → awaiting_payment → confirmed`.
+Kreator merespons via `/bookings/{id}/{accept,reject}`; klien membayar via
+payment flow. Semua mutasi status memakai `SELECT ... FOR UPDATE` row-locking;
 bentrok tanggal dijamin partial unique index `uq_bookings_accepted_date`
 (`DATE_UNAVAILABLE`). Halaman: `/kreator/[id]/booking`, `/booking`,
 `/booking/masuk`.
 
-## Planned storage flow (fase fitur)
+## Payment & escrow flow (Phase 5 — implemented)
 
-Upload media memakai bucket privat dengan signed URL berbatas waktu yang diterbitkan API setelah authorization. `JEPRET_MINIO_PUBLIC_ENDPOINT` adalah host MinIO yang dapat dijangkau jaringan browser dan dipakai API untuk menandatangani URL; istilah _public endpoint_ tidak berarti bucket menjadi publik. Bucket `jepret-private` tidak pernah diberi anonymous public-read policy, sedangkan CORS hanya mengizinkan origin aplikasi lokal `http://localhost:8080`.
+Pembayaran booking diproses melalui gateway `/api/v1/bookings/{id}/payment`:
 
-Browser wajib mengirim header `Content-Type` yang ditandatangani dan `If-None-Match: *` pada signed PUT. Header kedua menjadikan upload create-only sehingga key yang sudah ada tidak dapat ditimpa. Download bucket privat juga hanya melalui signed GET; tidak ada direct anonymous read.
+1. Status booking bertransisi ke `awaiting_payment`, membuat order pembayaran sandbox.
+2. Klien melakukan simulasi bayar → webhook memproses idempoten dan mengunci dana (`held`), status booking menjadi `confirmed`.
+3. Pembatalan booking sebelum sesi dimulai otomatis mengembalikan dana (`refunded`).
+4. Setelah deliverables diterima klien di ruang kerja, dana otomatis dilepas ke kreator (`released`).
 
-Image MinIO Community yang dipin belum mendukung per-bucket CORS. Compose tetap menyimpan `infra/minio/cors.xml` sebagai policy yang diinginkan dan mencoba menerapkannya, lalu menerima hanya respons `NotImplemented` yang dikenal sebelum memakai fallback server-level `MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:8080`. Fallback membatasi origin, tetapi tidak menjamin `ExposeHeader: ETag` dan `MaxAgeSeconds: 3600` dari XML. Ini tidak mengubah privasi bucket; API memeriksa ETag server-side dan browser tidak mengandalkannya. Object storage production wajib mengonfigurasi policy CORS ekuivalen secara eksplisit, termasuk method `GET`/`PUT`, kedua request header, exposed `ETag`, dan max age.
+## Mobile booking workspace, chat & deliverables (Phase 6 — implemented)
+
+Ruang kerja mobile terpadu (`/booking/[id]`) aktif ketika booking telah `confirmed`:
+
+1. **State Machine & Lifecycle**:
+   - `confirmed` → `in_progress` (Kreator menekan `Mulai sesi`, mencatat `session_started_at`).
+   - `in_progress` → `delivered` (Kreator mengunggah file/link dan menekan `Kirim hasil`, mencatat `delivered_at`).
+   - `delivered` → `completed` (Klien menekan `Terima hasil`, mencatat `completed_at` dan otomatis memicu pelepasan pembayaran `released`).
+
+2. **Real-time Chat & In-Process Hub**:
+   - REST-write / WebSocket-broadcast: Pengiriman pesan selalu melalui endpoint REST `POST /api/v1/conversations/{id}/messages` (menjamin validasi schema, idempotensi `client_message_id`, dan row-locking database).
+   - Event `message.created` dan `conversation.read` disiarkan secara real-time ke koneksi WebSocket terautentikasi (`/ws/conversations/{id}`).
+   - Client mengimplementasikan reconnection backoff otomatis dan fallback polling keyset cursor untuk ketahanan jaringan.
+
+3. **Storage Adapter & Trust Boundaries**:
+   - Private bucket `jepret-private` tidak memiliki anonymous read policy.
+   - Upload file melalui 2 tahap: Klien/kreator meminta upload intent (`POST /api/v1/uploads/intent`), menerima pre-signed PUT URL dengan header `Content-Type` dan `If-None-Match: *` (create-only).
+   - File yang terunggah divalidasi MIME type signature (magic bytes) server-side saat registrasi lampiran atau deliverable.
+   - Unduhan berkas privat diterbitkan melalui pre-signed GET URL berbatas waktu (15 menit) yang hanya dapat diakses oleh partisipan booking yang sah (`GET /api/v1/deliverables/{id}/download`).
+   - Tautan cloud eksternal (Google Drive, Dropbox, iCloud) divalidasi protokol HTTPS dan hostname valid sebelum disimpan.
 
 ## WebSocket flow
 
-`/ws/health` adalah probe infrastruktur untuk memvalidasi penerusan upgrade WebSocket oleh gateway. Business WebSocket terautentikasi (chat) ditambahkan pada Phase 6 melalui prefix `/ws/*` yang sama.
+- `/ws/health` — probe status konektivitas WebSocket gateway.
+- `/ws/conversations/{id}` — real-time event broadcast untuk obrolan ruang kerja terautentikasi.
 
 ## ADR-001: Same-origin Caddy gateway
 

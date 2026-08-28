@@ -4,17 +4,28 @@ const isWindows = process.platform === "win32";
 const npm = "npm";
 const uv = "uv";
 
+const prettierTargets = [
+  "apps/web",
+  "packages",
+  "infra",
+  "docs",
+  "scripts",
+  "*.json",
+  "*.md",
+  "*.yml",
+];
+
 const groups = {
   format: [
     [uv, ["run", "--project", "apps/api", "ruff", "format", "apps/api"]],
-    [npm, ["exec", "prettier", "--", "--write", "."]],
+    [npm, ["exec", "prettier", "--", "--write", ...prettierTargets]],
   ],
   formatcheck: [
     [
       uv,
       ["run", "--project", "apps/api", "ruff", "format", "--check", "apps/api"],
     ],
-    [npm, ["exec", "prettier", "--", "--check", "."]],
+    [npm, ["exec", "prettier", "--", "--check", ...prettierTargets]],
   ],
   lint: [
     [uv, ["run", "--project", "apps/api", "ruff", "check", "apps/api"]],

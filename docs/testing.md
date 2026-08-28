@@ -56,25 +56,30 @@ npm --workspace @jepret/web run typecheck
 npm --workspace @jepret/web run build
 ```
 
-## Focused payment suites
+## Focused workspace & chat suites
 
-Unit test mock provider tidak memerlukan database:
+Unit test storage adapter dan rate limiter:
 
 ```bash
-uv run --project apps/api pytest apps/api/tests/test_payment_provider.py -q
+uv run --project apps/api pytest apps/api/tests/test_storage_adapter.py apps/api/tests/test_rate_limit.py -q
 ```
 
-API payment dan integrasi state booking memerlukan PostgreSQL serta environment
-integration yang dijelaskan pada bagian Backend:
+Integration API workspace, uploads, conversations, WebSocket, dan deliverables:
 
 ```bash
-uv run --project apps/api pytest apps/api/tests/test_bookings_api.py apps/api/tests/test_payments_api.py -m integration -q
+uv run --project apps/api pytest apps/api/tests/test_bookings_api.py apps/api/tests/test_payments_api.py apps/api/tests/test_uploads_api.py apps/api/tests/test_conversations_api.py apps/api/tests/test_conversation_websocket.py apps/api/tests/test_deliverables_api.py apps/api/tests/test_workspace_lifecycle.py apps/api/tests/test_storage_integration.py -m integration -q
 ```
 
-Jalankan seluruh component test web untuk state dan halaman payment:
+Frontend workspace & conversation tests:
 
 ```bash
-npm --workspace @jepret/web test
+npm --workspace @jepret/web test -- src/app/booking/[id]/page.test.tsx src/lib/conversations.test.tsx src/lib/uploads.test.ts
+```
+
+Focused E2E workspace lifecycle:
+
+```bash
+npm --workspace @jepret/web run e2e -- workspace.spec.ts
 ```
 
 ## Contracts
@@ -98,22 +103,10 @@ npm --workspace @jepret/web exec playwright install chromium
 npm --workspace @jepret/web run e2e
 ```
 
-Untuk iterasi alur booking/payment saja:
+## Matrix verifikasi penuh
 
 ```bash
-npm --workspace @jepret/web run e2e -- booking.spec.ts
-npm --workspace @jepret/web run e2e -- booking.spec.ts
+npm run verify
 ```
 
-Spec booking memuat 3 test. Dua eksekusi berurutan yang sama-sama lulus
-membuktikan setiap run terisolasi dan tidak bergantung pada data run sebelumnya.
-
-Base URL default `http://localhost:8080` (override dengan `E2E_BASE_URL`). E2E tidak termasuk `npm run verify`; jalankan eksplisit atau lewat CI.
-
-## Runner gabungan
-
-```bash
-npm run verify   # formatcheck → lint → typecheck → test → contracts → build
-```
-
-`verify` berhenti pada kegagalan pertama. Group individual: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format`, `npm run format:check`, dan `node scripts/verify.mjs e2e`.
+Perintah di atas menjalankan: format check, lint, typecheck, unit test backend & frontend, OpenAPI contracts check, dan build.
