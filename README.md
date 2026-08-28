@@ -4,10 +4,12 @@ Marketplace mobile-first untuk menghubungkan klien dengan kreator visual (fotogr
 
 ## Status fase
 
-Phase 1–7 sudah selesai: foundation, auth dan profiles, marketplace, booking,
-payment sandbox, mobile workspace chat & deliverables, serta reviews, disputes,
-dan admin governance. Hardening dan production deployment readiness mengikuti
-Phase 8. Lihat `docs/implementation-plan.md` untuk bukti verifikasi dan tracker lengkap.
+Seluruh fase pengembangan (Phase 1–8) telah selesai secara penuh: foundation,
+auth dan profiles, marketplace, booking, payment sandbox, mobile workspace chat
+& deliverables, reviews, disputes, admin governance, serta hardening & production
+readiness (security headers, PWA manifest, audit logging, notification abstraction,
+dan production deployment runbook). Lihat `docs/implementation-plan.md` untuk
+bukti verifikasi dan tracker lengkap.
 
 ## Arsitektur
 

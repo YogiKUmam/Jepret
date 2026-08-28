@@ -1,0 +1,17 @@
+{
+  "name": "Jepret — Marketplace Kreator Visual",
+  "short_name": "Jepret",
+  "description": "Marketplace mobile-first untuk fotografer dan videografer terverifikasi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0e0d",
+  "theme_color": "#cfc5b8",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

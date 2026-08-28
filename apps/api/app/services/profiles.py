@@ -106,6 +106,14 @@ async def _review_application(
     profile.reviewed_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(profile)
+
+    from app.core.audit import log_audit_event
+
+    log_audit_event(
+        f"creator_profile.{new_status}",
+        target_id=profile.id,
+        metadata={"user_id": str(profile.user_id), "status": new_status},
+    )
     return profile
 
 

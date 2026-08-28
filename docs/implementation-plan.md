@@ -120,4 +120,19 @@
   - Next.js build: 12 routes generated successfully.
   - OpenAPI contracts check: 0 diff.
 
-- [ ] Phase 8 — Hardening & Production Readiness
+- [x] Phase 8 — Hardening & Production Readiness
+
+  **Bukti verifikasi (2026-08-28, mesin lokal Windows):**
+
+  - Security Headers & Gateway Hardening: Caddy gateway headers (`X-Frame-Options: DENY`,
+    `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`,
+    `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `-Server`) dan Next.js headers.
+  - PWA Web App Manifest & Mobile-First Assets: `public/manifest.json`, `public/icon.svg`,
+    serta viewport dan Apple Web App metadata di `app/layout.tsx`.
+  - Notification Service Abstraction: `apps/api/app/services/notifications.py` dengan
+    protokol `NotificationProvider` dan `ConsoleNotificationProvider` teruji.
+  - Structured Governance Audit Logging: `apps/api/app/core/audit.py` mencatat event
+    sensitif admin dan dispute lifecycle.
+  - Production Runbook: `docs/deployment.md` mendokumentasikan zero-downtime release,
+    database backup/restore, secret management, dan prosedur rollback.
+  - Quality Matrix: `npm run verify` hijau penuh tanpa error maupun warning.

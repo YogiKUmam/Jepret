@@ -81,6 +81,15 @@ async def open_booking_dispute(
 
     await db.commit()
 
+    from app.core.audit import log_audit_event
+
+    log_audit_event(
+        "dispute.opened",
+        actor_user_id=client_user.id,
+        target_id=dispute.id,
+        metadata={"booking_id": str(booking.id), "reason": reason_category},
+    )
+
     reloaded_stmt = (
         select(Dispute).options(selectinload(Dispute.opened_by)).where(Dispute.id == dispute.id)
     )
@@ -221,6 +230,19 @@ async def resolve_dispute_for_admin(
         db.add(system_msg)
 
     await db.commit()
+
+    from app.core.audit import log_audit_event
+
+    log_audit_event(
+        "dispute.resolved",
+        actor_user_id=admin_user.id,
+        target_id=dispute.id,
+        metadata={
+            "booking_id": str(booking.id),
+            "resolution": resolution,
+            "notes": resolution_notes,
+        },
+    )
 
     reloaded_stmt = (
         select(Dispute).options(selectinload(Dispute.opened_by)).where(Dispute.id == dispute.id)
