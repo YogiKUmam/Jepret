@@ -164,12 +164,19 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
   await expect(clientPage).toHaveURL(/\/booking\/[^/]+$/);
 
   const workspaceUrl = clientPage.url();
+
+  // 4a. Wait for workspace data to load (tabs appear only after workspaceQuery resolves)
+  await expect(clientPage.getByRole("tab", { name: "Chat" })).toBeVisible({
+    timeout: 20000,
+  });
+  // Click Chat tab explicitly to ensure panel is active (not hidden)
+  await clientPage.getByRole("tab", { name: "Chat" }).click();
   await expect(clientPage.getByText("Terkonfirmasi").first()).toBeVisible();
 
-  // 5. Client sends chat message
+  // 5. Client sends chat message (input appears after conversation messages load)
   const chatMessage = `Mohon foto keluarga juga (${crypto.randomUUID().slice(0, 6)}).`;
   const chatInput = clientPage.getByPlaceholder(/Tulis pesan/i);
-  await chatInput.waitFor({ state: "visible", timeout: 15000 });
+  await chatInput.waitFor({ state: "visible", timeout: 30000 });
   await chatInput.fill(chatMessage);
   await clientPage.getByRole("button", { name: "Kirim pesan" }).click();
   await expect(clientPage.getByText(chatMessage)).toBeVisible();
