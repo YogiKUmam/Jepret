@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Jepret</string>
+    <string name="server_url_dialog_title">Pengaturan Server Jepret</string>
+    <string name="server_url_hint">Contoh: http://192.168.110.91:8080</string>
+    <string name="save">Simpan</string>
+    <string name="cancel">Batal</string>
+    <string name="default_server_url">http://192.168.110.91:8080</string>
+</resources>

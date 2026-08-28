@@ -19,3 +19,7 @@ __pycache__/
 postgres-data/
 minio-data/
 *.tsbuildinfo
+.gradle/
+**/build/
+apps/android/local.properties
+
