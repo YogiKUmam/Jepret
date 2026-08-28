@@ -55,6 +55,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin Disputes */
+        get: operations["list_admin_disputes_api_v1_admin_disputes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{dispute_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Admin Dispute */
+        post: operations["resolve_admin_dispute_api_v1_admin_disputes__dispute_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Admin Overview */
+        get: operations["get_admin_overview_api_v1_admin_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -278,6 +329,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bookings/{booking_id}/dispute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Booking Dispute */
+        get: operations["get_booking_dispute_api_v1_bookings__booking_id__dispute_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open Booking Dispute */
+        post: operations["open_booking_dispute_api_v1_bookings__booking_id__disputes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bookings/{booking_id}/payments": {
         parameters: {
             query?: never;
@@ -307,6 +392,40 @@ export interface paths {
         put?: never;
         /** Reject Booking */
         post: operations["reject_booking_api_v1_bookings__booking_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Booking Review */
+        get: operations["get_booking_review_api_v1_bookings__booking_id__review_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Booking Review */
+        post: operations["create_booking_review_api_v1_bookings__booking_id__reviews_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -442,6 +561,23 @@ export interface paths {
         };
         /** Get Creator */
         get: operations["get_creator_api_v1_creators__creator_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/creators/{creator_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Creator Reviews */
+        get: operations["list_creator_reviews_api_v1_creators__creator_id__reviews_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -641,6 +777,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminOverviewEnvelope */
+        AdminOverviewEnvelope: {
+            data: components["schemas"]["AdminOverviewOut"];
+        };
+        /** AdminOverviewOut */
+        AdminOverviewOut: {
+            /** Active Disputes */
+            active_disputes: number;
+            /** Pending Creator Applications */
+            pending_creator_applications: number;
+            /** Total Bookings */
+            total_bookings: number;
+            /** Total Creators */
+            total_creators: number;
+            /** Total Gmv Idr */
+            total_gmv_idr: number;
+            /** Total Users */
+            total_users: number;
+        };
         /** AttachmentOut */
         AttachmentOut: {
             /** Content Type */
@@ -755,6 +910,16 @@ export interface components {
              */
             notes: string;
         };
+        /** CreateDisputeRequest */
+        CreateDisputeRequest: {
+            /** Description */
+            description: string;
+            /**
+             * Reason Category
+             * @enum {string}
+             */
+            reason_category: "not_delivered" | "quality_issue" | "unresponsive" | "other";
+        };
         /** CreateMessageRequest */
         CreateMessageRequest: {
             /** Body */
@@ -771,6 +936,13 @@ export interface components {
             message_type: "text" | "attachment";
             /** Upload Id */
             upload_id?: string | null;
+        };
+        /** CreateReviewRequest */
+        CreateReviewRequest: {
+            /** Comment */
+            comment?: string | null;
+            /** Rating */
+            rating: number;
         };
         /** CreateUploadRequest */
         CreateUploadRequest: {
@@ -846,6 +1018,16 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Rating Average
+             * @default 0
+             */
+            rating_average: number;
+            /**
+             * Review Count
+             * @default 0
+             */
+            review_count: number;
             /** Reviewed At */
             reviewed_at: string | null;
             /** Specialty */
@@ -874,6 +1056,16 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Rating Average
+             * @default 0
+             */
+            rating_average: number;
+            /**
+             * Review Count
+             * @default 0
+             */
+            review_count: number;
             /** Specialty */
             specialty: string;
             /** Starting Price Idr */
@@ -937,6 +1129,52 @@ export interface components {
              * Format: uuid
              */
             uploaded_by_user_id: string;
+        };
+        /** DisputeEnvelope */
+        DisputeEnvelope: {
+            data: components["schemas"]["DisputeOut"] | null;
+        };
+        /** DisputeListEnvelope */
+        DisputeListEnvelope: {
+            /** Data */
+            data: components["schemas"]["DisputeOut"][];
+        };
+        /** DisputeOut */
+        DisputeOut: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Opened By Full Name */
+            opened_by_full_name: string;
+            /**
+             * Opened By User Id
+             * Format: uuid
+             */
+            opened_by_user_id: string;
+            /** Reason Category */
+            reason_category: string;
+            /** Resolution Notes */
+            resolution_notes: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Resolved By Admin User Id */
+            resolved_by_admin_user_id: string | null;
+            /** Status */
+            status: string;
         };
         /** ExternalDeliverableRequest */
         ExternalDeliverableRequest: {
@@ -1109,6 +1347,69 @@ export interface components {
             full_name: string;
             /** Password */
             password: string;
+        };
+        /** ResolveDisputeRequest */
+        ResolveDisputeRequest: {
+            /**
+             * Resolution
+             * @enum {string}
+             */
+            resolution: "resolved_client" | "resolved_creator";
+            /** Resolution Notes */
+            resolution_notes: string;
+        };
+        /** ReviewEnvelope */
+        ReviewEnvelope: {
+            data: components["schemas"]["ReviewOut"] | null;
+        };
+        /** ReviewOut */
+        ReviewOut: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Client Full Name */
+            client_full_name: string;
+            /**
+             * Client User Id
+             * Format: uuid
+             */
+            client_user_id: string;
+            /** Comment */
+            comment: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Creator Profile Id
+             * Format: uuid
+             */
+            creator_profile_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Rating */
+            rating: number;
+        };
+        /** ReviewPageEnvelope */
+        ReviewPageEnvelope: {
+            data: components["schemas"]["ReviewPageOut"];
+        };
+        /** ReviewPageOut */
+        ReviewPageOut: {
+            /** Items */
+            items: components["schemas"]["ReviewOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+            /** Rating Average */
+            rating_average: number;
+            /** Review Count */
+            review_count: number;
         };
         /** SignedUploadEnvelope */
         SignedUploadEnvelope: {
@@ -1435,6 +1736,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_disputes_api_v1_admin_disputes_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputeListEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_admin_dispute_api_v1_admin_disputes__dispute_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dispute_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveDisputeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputeEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_overview_api_v1_admin_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOverviewEnvelope"];
                 };
             };
         };
@@ -1870,6 +2257,72 @@ export interface operations {
             };
         };
     };
+    get_booking_dispute_api_v1_bookings__booking_id__dispute_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputeEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_booking_dispute_api_v1_bookings__booking_id__disputes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDisputeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputeEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_payment_api_v1_bookings__booking_id__payments_get: {
         parameters: {
             query?: never;
@@ -1952,6 +2405,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_review_api_v1_bookings__booking_id__review_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_booking_review_api_v1_bookings__booking_id__reviews_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewEnvelope"];
                 };
             };
             /** @description Validation Error */
@@ -2237,6 +2756,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatorPublicEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_creator_reviews_api_v1_creators__creator_id__reviews_get: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                creator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewPageEnvelope"];
                 };
             };
             /** @description Validation Error */

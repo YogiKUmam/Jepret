@@ -25,20 +25,50 @@ describe("KreatorDetailPage", () => {
   it("renders the creator profile", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            data: {
-              id: "abc",
-              display_name: "Studio Cahaya",
-              city: "Bandung",
-              bio: "Fotografer pernikahan.",
-              specialty: "wedding",
-              starting_price_idr: 1_500_000,
-            },
-          }),
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/reviews")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () =>
+              Promise.resolve({
+                data: {
+                  items: [
+                    {
+                      id: "rev-1",
+                      booking_id: "book-1",
+                      client_user_id: "user-1",
+                      client_full_name: "Budi Santoso",
+                      creator_profile_id: "abc",
+                      rating: 5,
+                      comment: "Sangat bagus hasilnya!",
+                      created_at: "2026-08-28T00:00:00Z",
+                    },
+                  ],
+                  next_cursor: null,
+                  rating_average: 5.0,
+                  review_count: 1,
+                },
+              }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              data: {
+                id: "abc",
+                display_name: "Studio Cahaya",
+                city: "Bandung",
+                bio: "Fotografer pernikahan.",
+                specialty: "wedding",
+                starting_price_idr: 1_500_000,
+                rating_average: 5.0,
+                review_count: 1,
+              },
+            }),
+        });
       }),
     );
     renderPage();
@@ -51,6 +81,8 @@ describe("KreatorDetailPage", () => {
     expect(
       screen.getByRole("link", { name: /ajukan booking/i }),
     ).toHaveAttribute("href", "/kreator/abc/booking");
+    expect(await screen.findByText("Budi Santoso")).toBeVisible();
+    expect(screen.getByText("Sangat bagus hasilnya!")).toBeVisible();
   });
 
   it("shows a not-found state for missing creators", async () => {

@@ -34,6 +34,8 @@ class CreatorProfileOut(BaseModel):
     specialty: str
     starting_price_idr: int
     status: str
+    rating_average: float = 0.0
+    review_count: int = 0
     submitted_at: datetime | None
     reviewed_at: datetime | None
 
@@ -87,6 +89,8 @@ class CreatorPublicOut(BaseModel):
     bio: str
     specialty: str
     starting_price_idr: int
+    rating_average: float = 0.0
+    review_count: int = 0
 
 
 class CreatorPublicEnvelope(BaseModel):

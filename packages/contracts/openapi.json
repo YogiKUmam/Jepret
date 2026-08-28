@@ -1,6 +1,56 @@
 {
   "components": {
     "schemas": {
+      "AdminOverviewEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminOverviewOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "AdminOverviewEnvelope",
+        "type": "object"
+      },
+      "AdminOverviewOut": {
+        "properties": {
+          "active_disputes": {
+            "title": "Active Disputes",
+            "type": "integer"
+          },
+          "pending_creator_applications": {
+            "title": "Pending Creator Applications",
+            "type": "integer"
+          },
+          "total_bookings": {
+            "title": "Total Bookings",
+            "type": "integer"
+          },
+          "total_creators": {
+            "title": "Total Creators",
+            "type": "integer"
+          },
+          "total_gmv_idr": {
+            "title": "Total Gmv Idr",
+            "type": "integer"
+          },
+          "total_users": {
+            "title": "Total Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_users",
+          "total_creators",
+          "pending_creator_applications",
+          "total_bookings",
+          "active_disputes",
+          "total_gmv_idr"
+        ],
+        "title": "AdminOverviewOut",
+        "type": "object"
+      },
       "AttachmentOut": {
         "properties": {
           "content_type": {
@@ -259,6 +309,33 @@
         "title": "CreateBookingRequest",
         "type": "object"
       },
+      "CreateDisputeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Description",
+            "type": "string"
+          },
+          "reason_category": {
+            "enum": [
+              "not_delivered",
+              "quality_issue",
+              "unresponsive",
+              "other"
+            ],
+            "title": "Reason Category",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason_category",
+          "description"
+        ],
+        "title": "CreateDisputeRequest",
+        "type": "object"
+      },
       "CreateMessageRequest": {
         "additionalProperties": false,
         "properties": {
@@ -304,6 +381,34 @@
           "message_type"
         ],
         "title": "CreateMessageRequest",
+        "type": "object"
+      },
+      "CreateReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "rating": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rating"
+        ],
+        "title": "CreateReviewRequest",
         "type": "object"
       },
       "CreateUploadRequest": {
@@ -498,6 +603,16 @@
             "title": "Id",
             "type": "string"
           },
+          "rating_average": {
+            "default": 0.0,
+            "title": "Rating Average",
+            "type": "number"
+          },
+          "review_count": {
+            "default": 0,
+            "title": "Review Count",
+            "type": "integer"
+          },
           "reviewed_at": {
             "anyOf": [
               {
@@ -579,6 +694,16 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "rating_average": {
+            "default": 0.0,
+            "title": "Rating Average",
+            "type": "number"
+          },
+          "review_count": {
+            "default": 0,
+            "title": "Review Count",
+            "type": "integer"
           },
           "specialty": {
             "title": "Specialty",
@@ -787,6 +912,131 @@
           "created_at"
         ],
         "title": "DeliverableOut",
+        "type": "object"
+      },
+      "DisputeEnvelope": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DisputeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "DisputeEnvelope",
+        "type": "object"
+      },
+      "DisputeListEnvelope": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DisputeOut"
+            },
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "DisputeListEnvelope",
+        "type": "object"
+      },
+      "DisputeOut": {
+        "properties": {
+          "booking_id": {
+            "format": "uuid",
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "opened_by_full_name": {
+            "title": "Opened By Full Name",
+            "type": "string"
+          },
+          "opened_by_user_id": {
+            "format": "uuid",
+            "title": "Opened By User Id",
+            "type": "string"
+          },
+          "reason_category": {
+            "title": "Reason Category",
+            "type": "string"
+          },
+          "resolution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Notes"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolved_by_admin_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By Admin User Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "booking_id",
+          "opened_by_user_id",
+          "opened_by_full_name",
+          "reason_category",
+          "description",
+          "status",
+          "resolution_notes",
+          "resolved_by_admin_user_id",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "DisputeOut",
         "type": "object"
       },
       "ExternalDeliverableRequest": {
@@ -1260,6 +1510,160 @@
           "full_name"
         ],
         "title": "RegisterRequest",
+        "type": "object"
+      },
+      "ResolveDisputeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "resolution": {
+            "enum": [
+              "resolved_client",
+              "resolved_creator"
+            ],
+            "title": "Resolution",
+            "type": "string"
+          },
+          "resolution_notes": {
+            "maxLength": 2000,
+            "minLength": 5,
+            "title": "Resolution Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resolution",
+          "resolution_notes"
+        ],
+        "title": "ResolveDisputeRequest",
+        "type": "object"
+      },
+      "ReviewEnvelope": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ReviewEnvelope",
+        "type": "object"
+      },
+      "ReviewOut": {
+        "properties": {
+          "booking_id": {
+            "format": "uuid",
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "client_full_name": {
+            "title": "Client Full Name",
+            "type": "string"
+          },
+          "client_user_id": {
+            "format": "uuid",
+            "title": "Client User Id",
+            "type": "string"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "creator_profile_id": {
+            "format": "uuid",
+            "title": "Creator Profile Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "booking_id",
+          "client_user_id",
+          "client_full_name",
+          "creator_profile_id",
+          "rating",
+          "comment",
+          "created_at"
+        ],
+        "title": "ReviewOut",
+        "type": "object"
+      },
+      "ReviewPageEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReviewPageOut"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ReviewPageEnvelope",
+        "type": "object"
+      },
+      "ReviewPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "rating_average": {
+            "title": "Rating Average",
+            "type": "number"
+          },
+          "review_count": {
+            "title": "Review Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "rating_average",
+          "review_count"
+        ],
+        "title": "ReviewPageOut",
         "type": "object"
       },
       "SignedUploadEnvelope": {
@@ -2031,6 +2435,129 @@
         ]
       }
     },
+    "/api/v1/admin/disputes": {
+      "get": {
+        "operationId": "list_admin_disputes_api_v1_admin_disputes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeListEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Admin Disputes",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/disputes/{dispute_id}/resolve": {
+      "post": {
+        "operationId": "resolve_admin_dispute_api_v1_admin_disputes__dispute_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dispute_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dispute Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveDisputeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Admin Dispute",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/overview": {
+      "get": {
+        "operationId": "get_admin_overview_api_v1_admin_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOverviewEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Admin Overview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "login_api_v1_auth_login_post",
@@ -2596,6 +3123,102 @@
         ]
       }
     },
+    "/api/v1/bookings/{booking_id}/dispute": {
+      "get": {
+        "operationId": "get_booking_dispute_api_v1_bookings__booking_id__dispute_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Booking Dispute",
+        "tags": [
+          "disputes"
+        ]
+      }
+    },
+    "/api/v1/bookings/{booking_id}/disputes": {
+      "post": {
+        "operationId": "open_booking_dispute_api_v1_bookings__booking_id__disputes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDisputeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Open Booking Dispute",
+        "tags": [
+          "disputes"
+        ]
+      }
+    },
     "/api/v1/bookings/{booking_id}/payments": {
       "get": {
         "operationId": "get_payment_api_v1_bookings__booking_id__payments_get",
@@ -2736,6 +3359,102 @@
         "summary": "Reject Booking",
         "tags": [
           "bookings"
+        ]
+      }
+    },
+    "/api/v1/bookings/{booking_id}/review": {
+      "get": {
+        "operationId": "get_booking_review_api_v1_bookings__booking_id__review_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Booking Review",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/bookings/{booking_id}/reviews": {
+      "post": {
+        "operationId": "create_booking_review_api_v1_bookings__booking_id__reviews_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Booking Review",
+        "tags": [
+          "reviews"
         ]
       }
     },
@@ -3252,6 +3971,77 @@
         "summary": "Get Creator",
         "tags": [
           "creators"
+        ]
+      }
+    },
+    "/api/v1/creators/{creator_id}/reviews": {
+      "get": {
+        "operationId": "list_creator_reviews_api_v1_creators__creator_id__reviews_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "creator_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Creator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewPageEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Creator Reviews",
+        "tags": [
+          "reviews"
         ]
       }
     },

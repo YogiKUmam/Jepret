@@ -100,5 +100,24 @@
   - `npm run verify` hijau penuh (formatcheck, lint, typecheck mypy 41 files & tsc,
     test pytest 99 + vitest 129, contracts check, Next.js build).
 
-- [ ] Phase 7 — Completion, reviews, disputes, admin
-- [ ] Phase 8 — Hardening
+- [x] Phase 7 — Reviews, disputes, dan admin governance
+
+  **Bukti verifikasi (2026-08-28, mesin lokal Windows):**
+
+  - Migration `20260828_0007` (tabel `reviews`, tabel `disputes`, status booking `disputed`,
+    agregasi rating `rating_average` & `review_count` pada `creator_profiles`).
+  - Rating & Review System: 1 review per completed booking, star rating 1–5, komentar,
+    transaksional rating average recalculation, dan paginasi keyset cursor.
+  - Dispute & Escrow Mediation: pembukaan komplain pada status booking aktif,
+    banner status sengketa, dan penyelesaian mediasi admin (`resolved_client` → refund
+    penuh vs `resolved_creator` → release pembayaran).
+  - Admin Governance: dashboard metrik operasional (`/admin`), verifikasi profil
+    kreator (`/admin/kreator`), dan mediasi sengketa (`/admin/sengketa`).
+  - Frontend components: `ReviewForm`, `ReviewList`, `DisputeModal`, `DisputeBanner`,
+    integrasi `/booking/[id]` & `/kreator/[id]`.
+  - Backend unit & integration test: pytest passed (schema, review api, disputes api, admin api).
+  - Frontend component test: Vitest 20 test files / 134 passed.
+  - Next.js build: 12 routes generated successfully.
+  - OpenAPI contracts check: 0 diff.
+
+- [ ] Phase 8 — Hardening & Production Readiness

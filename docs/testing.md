@@ -82,6 +82,26 @@ Focused E2E workspace lifecycle:
 npm --workspace @jepret/web run e2e -- workspace.spec.ts
 ```
 
+## Phase 7: Reviews, Disputes & Admin Governance tests
+
+Backend reviews, disputes, and admin API tests:
+
+```bash
+uv run --project apps/api pytest apps/api/tests/test_phase7_schema.py apps/api/tests/test_reviews_api.py apps/api/tests/test_disputes_api.py -q
+```
+
+Frontend reviews & admin tests:
+
+```bash
+npm --workspace @jepret/web test -- src/components/reviews/review-form.test.tsx src/components/disputes/dispute-modal.test.tsx src/app/admin/page.test.tsx src/app/admin/kreator/page.test.tsx src/app/admin/sengketa/page.test.tsx
+```
+
+Focused Phase 7 E2E:
+
+```bash
+npm --workspace @jepret/web run e2e -- governance.spec.ts
+```
+
 ## Contracts
 
 ```bash

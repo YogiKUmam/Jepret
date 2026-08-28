@@ -17,6 +17,7 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   rejected: "Ditolak",
   completed: "Selesai",
   cancelled: "Dibatalkan",
+  disputed: "Dalam sengketa",
 };
 
 export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [

@@ -7,8 +7,10 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -29,11 +31,20 @@ BOOKING_STATUSES = (
     "rejected",
     "completed",
     "cancelled",
+    "disputed",
 )
 MESSAGE_TYPES: tuple[str, ...] = ("text", "attachment", "system")
 UPLOAD_PURPOSES: tuple[str, ...] = ("chat_attachment", "deliverable")
 UPLOAD_STATUSES: tuple[str, ...] = ("pending", "completed", "expired", "rejected")
 DELIVERABLE_SOURCE_TYPES: tuple[str, ...] = ("private_file", "external_link")
+DISPUTE_REASONS: tuple[str, ...] = ("not_delivered", "quality_issue", "unresponsive", "other")
+DISPUTE_STATUSES: tuple[str, ...] = (
+    "open",
+    "under_review",
+    "resolved_client",
+    "resolved_creator",
+    "closed",
+)
 PAYMENT_STATUSES = (
     "pending",
     "paid",
@@ -115,11 +126,16 @@ class CreatorProfile(TimestampMixin, Base):
     specialty: Mapped[str] = mapped_column(String(50), nullable=False)
     starting_price_idr: Mapped[int] = mapped_column(BigInteger, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    rating_average: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    review_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="creator_profile")
     bookings: Mapped[list["Booking"]] = relationship(
+        back_populates="creator_profile", cascade="all, delete-orphan"
+    )
+    reviews: Mapped[list["Review"]] = relationship(
         back_populates="creator_profile", cascade="all, delete-orphan"
     )
 
@@ -130,7 +146,7 @@ class Booking(TimestampMixin, Base):
         CheckConstraint(
             (
                 "status IN ('requested', 'accepted', 'awaiting_payment', 'confirmed', "
-                "'in_progress', 'delivered', 'rejected', 'completed', 'cancelled')"
+                "'in_progress', 'delivered', 'rejected', 'completed', 'cancelled', 'disputed')"
             ),
             name="ck_booking_status_valid",
         ),
@@ -144,7 +160,7 @@ class Booking(TimestampMixin, Base):
             unique=True,
             postgresql_where=text(
                 "status IN ('accepted', 'awaiting_payment', 'confirmed', "
-                "'in_progress', 'delivered')"
+                "'in_progress', 'delivered', 'disputed')"
             ),
         ),
     )
@@ -180,6 +196,12 @@ class Booking(TimestampMixin, Base):
     )
     deliverables: Mapped[list["Deliverable"]] = relationship(
         back_populates="booking", cascade="all, delete-orphan"
+    )
+    review: Mapped["Review | None"] = relationship(
+        back_populates="booking", cascade="all, delete-orphan", single_parent=True
+    )
+    dispute: Mapped["Dispute | None"] = relationship(
+        back_populates="booking", cascade="all, delete-orphan", single_parent=True
     )
 
 
@@ -372,3 +394,66 @@ class PaymentEvent(Base):
     )
 
     payment: Mapped[Payment] = relationship(back_populates="events")
+
+
+class Review(TimestampMixin, Base):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_review_rating_range"),
+        UniqueConstraint("booking_id", name="uq_review_booking"),
+        Index("ix_reviews_creator_created", "creator_profile_id", "created_at"),
+        Index("ix_reviews_client", "client_user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False
+    )
+    client_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    creator_profile_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("creator_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    booking: Mapped[Booking] = relationship(back_populates="review")
+    client: Mapped[User] = relationship()
+    creator_profile: Mapped[CreatorProfile] = relationship(back_populates="reviews")
+
+
+class Dispute(Base):
+    __tablename__ = "disputes"
+    __table_args__ = (
+        CheckConstraint(
+            "reason_category IN ('not_delivered', 'quality_issue', 'unresponsive', 'other')",
+            name="ck_dispute_reason_category_valid",
+        ),
+        CheckConstraint(
+            "status IN ('open', 'under_review', 'resolved_client', 'resolved_creator', 'closed')",
+            name="ck_dispute_status_valid",
+        ),
+        UniqueConstraint("booking_id", name="uq_dispute_booking"),
+        Index("ix_disputes_status_created", "status", "created_at"),
+        Index("ix_disputes_opened_by", "opened_by_user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False
+    )
+    opened_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    reason_category: Mapped[str] = mapped_column(String(50), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="open", nullable=False)
+    resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved_by_admin_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    booking: Mapped[Booking] = relationship(back_populates="dispute")
+    opened_by: Mapped[User] = relationship(foreign_keys=[opened_by_user_id])
+    resolved_by_admin: Mapped[User | None] = relationship(foreign_keys=[resolved_by_admin_user_id])

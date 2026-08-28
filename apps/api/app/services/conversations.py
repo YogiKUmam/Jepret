@@ -25,7 +25,7 @@ from app.core.errors import DomainError
 from app.db.models import Booking, Conversation, CreatorProfile, Message, UploadIntent, User
 from app.services.workspace_access import require_booking_participant
 
-_ACTIVE = frozenset({"confirmed", "in_progress", "delivered"})
+_ACTIVE = frozenset({"confirmed", "in_progress", "delivered", "disputed"})
 _TERMINAL = frozenset({"completed", "cancelled"})
 
 

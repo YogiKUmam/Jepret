@@ -24,6 +24,8 @@ export interface CreatorProfile {
   specialty: string;
   starting_price_idr: number;
   status: "draft" | "pending" | "approved" | "rejected";
+  rating_average: number;
+  review_count: number;
   submitted_at: string | null;
   reviewed_at: string | null;
 }
@@ -78,6 +80,8 @@ export interface CreatorPublic {
   bio: string;
   specialty: string;
   starting_price_idr: number;
+  rating_average: number;
+  review_count: number;
 }
 
 export interface CreatorListPage {
@@ -94,7 +98,8 @@ export type BookingStatus =
   | "delivered"
   | "rejected"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "disputed";
 
 export type PaymentStatus =
   "pending" | "paid" | "held" | "released" | "refunded" | "failed" | "expired";
@@ -233,4 +238,57 @@ export interface Workspace {
   deliverables: Deliverable[];
   unread_count: number;
   payment: WorkspacePayment | null;
+}
+
+export interface Review {
+  id: string;
+  booking_id: string;
+  client_user_id: string;
+  client_full_name: string;
+  creator_profile_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface ReviewPage {
+  items: Review[];
+  next_cursor: string | null;
+  rating_average: number;
+  review_count: number;
+}
+
+export type DisputeReason =
+  "not_delivered" | "quality_issue" | "unresponsive" | "other";
+
+export type DisputeStatus =
+  "open" | "under_review" | "resolved_client" | "resolved_creator" | "closed";
+
+export interface Dispute {
+  id: string;
+  booking_id: string;
+  opened_by_user_id: string;
+  opened_by_full_name: string;
+  reason_category: DisputeReason;
+  description: string;
+  status: DisputeStatus;
+  resolution_notes: string | null;
+  resolved_by_admin_user_id: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface AdminOverview {
+  total_users: number;
+  total_creators: number;
+  pending_creator_applications: number;
+  total_bookings: number;
+  active_disputes: number;
+  total_gmv_idr: number;
+}
+
+export interface CreatorApplication {
+  profile: CreatorProfile;
+  user_email: string;
+  user_full_name: string;
 }

@@ -83,6 +83,25 @@ Ruang kerja mobile terpadu (`/booking/[id]`) aktif ketika booking telah `confirm
    - Unduhan berkas privat diterbitkan melalui pre-signed GET URL berbatas waktu (15 menit) yang hanya dapat diakses oleh partisipan booking yang sah (`GET /api/v1/deliverables/{id}/download`).
    - Tautan cloud eksternal (Google Drive, Dropbox, iCloud) divalidasi protokol HTTPS dan hostname valid sebelum disimpan.
 
+## Reviews, Disputes & Admin Governance (Phase 7 — implemented)
+
+1. **Rating & Reviews System**:
+   - Ulasan hanya dapat diberikan oleh klien setelah booking berstatus `completed`.
+   - 1 ulasan unik per booking dengan rating bintang 1–5 dan komentar opsional.
+   - Agregasi `rating_average` dan `review_count` diperbarui secara transaksional pada tabel `creator_profiles`.
+   - Paginasi ulasan publik pada profil kreator menggunakan keyset cursor `(created_at, id)` untuk konsistensi data real-time.
+
+2. **Dispute Management & Escrow Protection**:
+   - Klien dapat mengajukan sengketa/komplain pada booking yang aktif (`confirmed`, `in_progress`, `delivered`).
+   - Pembukaan sengketa mengubah status booking menjadi `disputed`, menahan dana di escrow, dan menyisipkan pesan sistem pada obrolan ruang kerja.
+   - Mediasi admin (`/admin/sengketa`):
+     - `resolved_client`: membatalkan booking (`cancelled`) dan memicu refund pembayaran penuh ke klien.
+     - `resolved_creator`: menyelesaikan booking (`completed`) dan melepas pembayaran ke kreator (`released`).
+
+3. **Admin Governance & Verification**:
+   - Ringkasan metrik operasional (`/admin`): total pengguna, total kreator, aplikasi pending, total booking, sengketa aktif, dan total GMV transaksi.
+   - Verifikasi pengajuan kreator (`/admin/kreator`): persetujuan atau penolakan profil dengan audit timestamp.
+
 ## WebSocket flow
 
 - `/ws/health` — probe status konektivitas WebSocket gateway.

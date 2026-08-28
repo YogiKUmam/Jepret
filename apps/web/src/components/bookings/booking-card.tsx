@@ -12,6 +12,7 @@ const STATUS_CLASS: Record<BookingStatus, string> = {
   rejected: "bg-[#7a3b3b] text-white",
   completed: "bg-[#3b5a7a] text-white",
   cancelled: "bg-[var(--border)] text-[var(--foreground)]",
+  disputed: "bg-[#8a3b3b] text-white",
 };
 
 export function BookingCard({

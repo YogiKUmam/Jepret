@@ -4,10 +4,10 @@ Marketplace mobile-first untuk menghubungkan klien dengan kreator visual (fotogr
 
 ## Status fase
 
-Phase 1–6 sudah selesai: foundation, auth dan profiles, marketplace, booking,
-payment sandbox, serta mobile workspace chat & deliverables. Reviews, disputes,
-dan hardening mengikuti Phase 7–8. Lihat `docs/implementation-plan.md` untuk
-bukti verifikasi dan tracker lengkap.
+Phase 1–7 sudah selesai: foundation, auth dan profiles, marketplace, booking,
+payment sandbox, mobile workspace chat & deliverables, serta reviews, disputes,
+dan admin governance. Hardening dan production deployment readiness mengikuti
+Phase 8. Lihat `docs/implementation-plan.md` untuk bukti verifikasi dan tracker lengkap.
 
 ## Arsitektur
 
@@ -54,7 +54,7 @@ asli di repository; nilai default hanya untuk pengembangan lokal.
 ## Migration
 
 Setiap perubahan database memakai Alembic. Baseline kosong adalah
-`20260713_0001`; migration head saat ini `20260816_0006`.
+`20260713_0001`; migration head saat ini `20260828_0007`.
 
 ```bash
 docker compose run --rm migrate                          # via Docker

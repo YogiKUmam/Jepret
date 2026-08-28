@@ -3,12 +3,18 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { DisputeBanner } from "@/components/disputes/dispute-banner";
+import { DisputeModal } from "@/components/disputes/dispute-modal";
 import { AppHeader } from "@/components/layout/app-header";
 import { BottomNavigation } from "@/components/layout/bottom-navigation";
+import { ReviewForm } from "@/components/reviews/review-form";
 import { ConversationPanel } from "@/components/workspace/conversation-panel";
 import { DeliverablesPanel } from "@/components/workspace/deliverables-panel";
 import { WorkspaceHeader } from "@/components/workspace/workspace-header";
+import type { Dispute, Review } from "@/lib/api";
 import { useMe } from "@/lib/auth";
+import { getBookingDispute } from "@/lib/disputes";
+import { getBookingReview } from "@/lib/reviews";
 import { useWorkspace, useWorkspaceAction } from "@/lib/workspaces";
 
 export default function WorkspacePage() {
@@ -25,7 +31,12 @@ export default function WorkspacePage() {
 
   const [activeTab, setActiveTab] = useState<"chat" | "deliverables">("chat");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const [dispute, setDispute] = useState<Dispute | null>(null);
+  const [review, setReview] = useState<Review | null>(null);
+  const [loadingExtra, setLoadingExtra] = useState(true);
 
   const chatTabRef = useRef<HTMLButtonElement | null>(null);
   const deliverablesTabRef = useRef<HTMLButtonElement | null>(null);
@@ -35,6 +46,25 @@ export default function WorkspacePage() {
       router.push("/masuk");
     }
   }, [me, mePending, router]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!bookingId) return;
+
+    Promise.all([
+      getBookingDispute(bookingId).catch(() => null),
+      getBookingReview(bookingId).catch(() => null),
+    ]).then(([disputeData, reviewData]) => {
+      if (!isMounted) return;
+      setDispute(disputeData);
+      setReview(reviewData);
+      setLoadingExtra(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [bookingId]);
 
   const workspace = workspaceQuery.data;
 
@@ -118,9 +148,14 @@ export default function WorkspacePage() {
     );
   }
 
-  const { booking, conversation, deliverables } = workspace;
+  const { booking, conversation, deliverables, role } = workspace;
   const isTerminal =
     booking.status === "completed" || booking.status === "cancelled";
+
+  const canOpenDispute =
+    role === "client" &&
+    !dispute &&
+    ["confirmed", "in_progress", "delivered"].includes(booking.status);
 
   return (
     <main className="min-h-screen bg-[var(--surface)] pb-24 text-[var(--surface-foreground)]">
@@ -137,6 +172,42 @@ export default function WorkspacePage() {
           isAccepting={completeAction.isPending}
           actionError={actionError}
         />
+
+        {/* Dispute Banner if active dispute exists */}
+        {dispute && <DisputeBanner dispute={dispute} />}
+
+        {/* Client Review Section when completed */}
+        {booking.status === "completed" &&
+          role === "client" &&
+          !loadingExtra && (
+            <div className="space-y-4">
+              {review ? (
+                <div className="rounded-[28px] border border-white/[0.08] bg-[#1C1C1E]/80 p-6 backdrop-blur-2xl">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-serif text-lg font-bold text-[var(--foreground)]">
+                      Ulasan Anda untuk Kreator
+                    </h3>
+                    <span className="text-xs font-semibold text-amber-400">
+                      {"★".repeat(review.rating)}{" "}
+                      <span className="text-white/20">
+                        {"★".repeat(5 - review.rating)}
+                      </span>
+                    </span>
+                  </div>
+                  {review.comment && (
+                    <p className="mt-2 text-sm text-neutral-300">
+                      &ldquo;{review.comment}&rdquo;
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <ReviewForm
+                  bookingId={booking.id}
+                  onSuccess={(newReview) => setReview(newReview)}
+                />
+              )}
+            </div>
+          )}
 
         {/* Semantic Tabs with ARIA support */}
         <div
@@ -218,6 +289,19 @@ export default function WorkspacePage() {
             deliverables={deliverables}
           />
         </div>
+
+        {/* Client Dispute Button */}
+        {canOpenDispute && (
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={() => setShowDisputeModal(true)}
+              className="text-xs font-semibold text-red-400/80 hover:text-red-400 hover:underline active:scale-95"
+            >
+              Ada masalah dengan pesanan ini? Ajukan Sengketa / Komplain
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Confirmation Modal for Client Accept Delivery */}
@@ -261,6 +345,18 @@ export default function WorkspacePage() {
           </div>
         </div>
       ) : null}
+
+      {/* Dispute Modal */}
+      <DisputeModal
+        bookingId={booking.id}
+        isOpen={showDisputeModal}
+        onClose={() => setShowDisputeModal(false)}
+        onSuccess={(newDispute) => {
+          setDispute(newDispute);
+          setShowDisputeModal(false);
+          workspaceQuery.refetch();
+        }}
+      />
 
       <BottomNavigation />
     </main>

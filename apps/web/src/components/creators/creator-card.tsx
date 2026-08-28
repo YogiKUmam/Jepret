@@ -20,9 +20,22 @@ export function CreatorCard({ creator }: { creator: CreatorPublic }) {
           </span>
         </div>
         <div className="p-4">
-          <p className="text-xs font-semibold text-[var(--primary)]">
-            TERVERIFIKASI
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-[var(--primary)]">
+              TERVERIFIKASI
+            </p>
+            {creator.review_count > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400">
+                <span aria-hidden>★</span>
+                <span>{creator.rating_average.toFixed(1)}</span>
+                <span className="text-[var(--muted)]">
+                  ({creator.review_count})
+                </span>
+              </span>
+            ) : (
+              <span className="text-xs text-[var(--muted)]">Baru</span>
+            )}
+          </div>
           <h3 className="mt-2 text-lg font-semibold">{creator.display_name}</h3>
           <p className="mt-1 text-sm text-[#cfc5b8]">
             {creator.city} · {creator.specialty}
