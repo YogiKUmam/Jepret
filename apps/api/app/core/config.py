@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     storage_signed_url_ttl_seconds: int = Field(default=600, ge=60, le=3600)
     redis_url: str | None = None
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: object) -> object:
+        if isinstance(value, str):
+            if value.startswith("postgres://"):
+                return value.replace("postgres://", "postgresql+asyncpg://", 1)
+            if value.startswith("postgresql://") and not value.startswith("postgresql+"):
+                return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return value
+
     @field_validator("public_origin", mode="before")
     @classmethod
     def reject_wildcard_origin(cls, value: object) -> object:
