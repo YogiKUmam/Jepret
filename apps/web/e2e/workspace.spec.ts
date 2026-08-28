@@ -168,7 +168,9 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
 
   // 5. Client sends chat message
   const chatMessage = `Mohon foto keluarga juga (${crypto.randomUUID().slice(0, 6)}).`;
-  await clientPage.getByPlaceholder(/Tulis pesan…/i).fill(chatMessage);
+  const chatInput = clientPage.getByPlaceholder(/Tulis pesan/i);
+  await chatInput.waitFor({ state: "visible", timeout: 15000 });
+  await chatInput.fill(chatMessage);
   await clientPage.getByRole("button", { name: "Kirim pesan" }).click();
   await expect(clientPage.getByText(chatMessage)).toBeVisible();
 
