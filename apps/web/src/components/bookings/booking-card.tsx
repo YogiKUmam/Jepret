@@ -18,17 +18,30 @@ export function BookingCard({
   booking,
   children,
   showClient = false,
+  unreadCount = 0,
 }: {
   booking: Booking;
   children?: React.ReactNode;
   showClient?: boolean;
+  unreadCount?: number;
 }) {
   return (
     <article className="rounded-2xl bg-[var(--background)] p-4 text-[var(--foreground)]">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-lg font-semibold">
-          {showClient ? booking.client_name : booking.creator.display_name}
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold">
+            {showClient ? booking.client_name : booking.creator.display_name}
+          </h3>
+          {unreadCount > 0 ? (
+            <span
+              role="status"
+              aria-label={`${unreadCount} pesan belum dibaca`}
+              className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white shadow-xs"
+            >
+              {unreadCount}
+            </span>
+          ) : null}
+        </div>
         <span
           className={`rounded-full px-3 py-1 text-xs font-semibold ${
             STATUS_CLASS[booking.status]

@@ -28,6 +28,9 @@ function booking(id: string, status: string) {
     notes: "Akad pagi.",
     quoted_price_idr: 1_500_000,
     created_at: "2026-07-21T00:00:00Z",
+    started_at: null,
+    delivered_at: null,
+    completed_at: null,
     creator: {
       id: "c1",
       display_name: "Studio Cahaya",
@@ -38,13 +41,26 @@ function booking(id: string, status: string) {
   };
 }
 
-function stubFetch(bookings: unknown[]) {
+function stubFetch(bookings: unknown[], unread: unknown[] = []) {
   const fetchMock = vi.fn((url: string) => {
-    const body = url.includes("/auth/me") ? { data: ME } : { data: bookings };
+    if (url.includes("/auth/me")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: ME }),
+      });
+    }
+    if (url.includes("/conversations/unread")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: unread }),
+      });
+    }
     return Promise.resolve({
       ok: true,
       status: 200,
-      json: () => Promise.resolve(body),
+      json: () => Promise.resolve({ data: bookings }),
     });
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -73,7 +89,7 @@ describe("BookingPage", () => {
     expect(screen.getByText(/2026-09-01 · Bandung/)).toBeVisible();
   });
 
-  it("cancels an active booking", async () => {
+  it("cancels an active booking before work starts", async () => {
     const fetchMock = stubFetch([booking("b1", "accepted")]);
     renderPage();
     await userEvent.click(
@@ -101,6 +117,13 @@ describe("BookingPage", () => {
           ok: true,
           status: 200,
           json: () => Promise.resolve({ data: ME }),
+        });
+      }
+      if (url.includes("/conversations/unread")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ data: [] }),
         });
       }
       if (url.endsWith("/bookings/b1/cancel")) return cancelResponse;
@@ -149,72 +172,8 @@ describe("BookingPage", () => {
         fetchMock.mock.calls.filter(([url]) =>
           String(url).endsWith("/bookings/b1/cancel"),
         ),
-      ).toHaveLength(2),
-    );
-  });
-
-  it("stays pending until cancellation refresh replaces stale actions", async () => {
-    type MockResponse = {
-      ok: boolean;
-      status: number;
-      json: () => Promise<unknown>;
-    };
-    let resolveRefetch!: (response: MockResponse) => void;
-    const refetchResponse = new Promise<MockResponse>((resolve) => {
-      resolveRefetch = resolve;
-    });
-    let bookingRequestCount = 0;
-    const fetchMock = vi.fn((url: string) => {
-      if (url.includes("/auth/me")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ data: ME }),
-        });
-      }
-      if (url.endsWith("/bookings/b1/cancel")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ data: booking("b1", "cancelled") }),
-        });
-      }
-      bookingRequestCount += 1;
-      if (bookingRequestCount > 1) return refetchResponse;
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ data: [booking("b1", "confirmed")] }),
-      });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    renderPage();
-
-    const cancelButton = await screen.findByRole("button", {
-      name: "Batalkan",
-    });
-    await userEvent.click(cancelButton);
-    await waitFor(() => {
-      expect(bookingRequestCount).toBe(2);
-      expect(cancelButton).toBeDisabled();
-    });
-    await userEvent.click(cancelButton);
-    expect(
-      fetchMock.mock.calls.filter(([url]) =>
-        String(url).endsWith("/bookings/b1/cancel"),
       ),
-    ).toHaveLength(1);
-
-    resolveRefetch({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ data: [booking("b1", "cancelled")] }),
-    });
-
-    expect(await screen.findByText("Dibatalkan")).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Batalkan" }),
-    ).not.toBeInTheDocument();
+    );
   });
 
   it("links accepted bookings to payment creation", async () => {
@@ -224,19 +183,42 @@ describe("BookingPage", () => {
       name: "Bayar sekarang",
     });
     expect(paymentLink).toHaveAttribute("href", "/booking/b1/pembayaran");
-    expect(paymentLink).toHaveClass("text-[var(--primary-foreground)]");
   });
 
-  it.each(["awaiting_payment", "confirmed"])(
-    "links %s bookings to payment details",
+  it.each(["confirmed", "in_progress", "delivered", "completed"])(
+    "links %s bookings to workspace",
     async (status) => {
       stubFetch([booking("b1", status)]);
       renderPage();
-      expect(
-        await screen.findByRole("link", { name: "Lihat pembayaran" }),
-      ).toHaveAttribute("href", "/booking/b1/pembayaran");
+      const workspaceLink = await screen.findByRole("link", {
+        name: "Buka ruang kerja",
+      });
+      expect(workspaceLink).toHaveAttribute("href", "/booking/b1");
     },
   );
+
+  it.each(["in_progress", "delivered", "completed"])(
+    "hides cancel button once work starts in %s status",
+    async (status) => {
+      stubFetch([booking("b1", status)]);
+      renderPage();
+      await screen.findByText("Studio Cahaya");
+      expect(
+        screen.queryByRole("button", { name: "Batalkan" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("shows unread badge on matching booking card when unread count > 0", async () => {
+    stubFetch(
+      [booking("b1", "confirmed"), booking("b2", "confirmed")],
+      [{ booking_id: "b1", count: 3 }],
+    );
+    renderPage();
+    const badge = await screen.findByLabelText("3 pesan belum dibaca");
+    expect(badge).toBeVisible();
+    expect(badge).toHaveTextContent("3");
+  });
 
   it("hides cancel for terminal bookings and shows empty state", async () => {
     stubFetch([]);

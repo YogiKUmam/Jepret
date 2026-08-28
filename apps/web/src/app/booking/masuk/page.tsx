@@ -2,30 +2,50 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 import { BookingCard } from "@/components/bookings/booking-card";
 import { AppHeader } from "@/components/layout/app-header";
 import { BottomNavigation } from "@/components/layout/bottom-navigation";
 import { useMe } from "@/lib/auth";
 import { useBookingAction, useIncomingBookings } from "@/lib/bookings";
+import { useUnreadCounts } from "@/lib/conversations";
 
-const actionClass =
-  "min-h-11 rounded-xl px-5 text-sm font-medium disabled:opacity-60";
+const primaryActionClass =
+  "inline-flex min-h-11 items-center rounded-xl bg-[var(--primary)] px-5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition active:scale-[0.98]";
+const secondaryActionClass =
+  "inline-flex min-h-11 items-center rounded-xl border border-[var(--border)] px-5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-60";
+
+const WORKSPACE_STATUSES = [
+  "confirmed",
+  "in_progress",
+  "delivered",
+  "completed",
+];
 
 export default function BookingMasukPage() {
   const router = useRouter();
   const { data: me, isPending: mePending } = useMe();
   const incoming = useIncomingBookings();
+  const unreadQuery = useUnreadCounts();
   const accept = useBookingAction("accept");
   const reject = useBookingAction("reject");
-  const complete = useBookingAction("complete");
 
   useEffect(() => {
     if (!mePending && me === null) router.push("/masuk");
   }, [me, mePending, router]);
 
-  const busy = accept.isPending || reject.isPending || complete.isPending;
+  const unreadMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (unreadQuery.data) {
+      for (const item of unreadQuery.data) {
+        map.set(item.booking_id, item.count);
+      }
+    }
+    return map;
+  }, [unreadQuery.data]);
+
+  const busy = accept.isPending || reject.isPending;
 
   return (
     <main className="min-h-screen bg-[var(--surface)] pb-24 text-[var(--surface-foreground)]">
@@ -49,14 +69,18 @@ export default function BookingMasukPage() {
           <ul className="mt-6 list-none space-y-4">
             {incoming.data.map((booking) => (
               <li key={booking.id}>
-                <BookingCard booking={booking} showClient>
+                <BookingCard
+                  booking={booking}
+                  showClient
+                  unreadCount={unreadMap.get(booking.id) ?? 0}
+                >
                   {booking.status === "requested" ? (
                     <>
                       <button
                         type="button"
                         onClick={() => accept.mutate(booking.id)}
                         disabled={busy}
-                        className={`${actionClass} bg-[var(--primary)]`}
+                        className={`${primaryActionClass}`}
                       >
                         Terima
                       </button>
@@ -64,35 +88,26 @@ export default function BookingMasukPage() {
                         type="button"
                         onClick={() => reject.mutate(booking.id)}
                         disabled={busy}
-                        className={`${actionClass} border border-[var(--border)]`}
+                        className={`${secondaryActionClass}`}
                       >
                         Tolak
                       </button>
                     </>
-                  ) : booking.status === "confirmed" ? (
+                  ) : WORKSPACE_STATUSES.includes(booking.status) ? (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => complete.mutate(booking.id)}
-                        disabled={busy}
-                        className={`${actionClass} border border-[var(--border)]`}
+                      <Link
+                        href={`/booking/${booking.id}`}
+                        className={primaryActionClass}
                       >
-                        Tandai selesai
-                      </button>
+                        Buka ruang kerja
+                      </Link>
                       <Link
                         href={`/booking/${booking.id}/pembayaran`}
-                        className={`${actionClass} inline-flex items-center border border-[var(--border)]`}
+                        className={secondaryActionClass}
                       >
                         Lihat pembayaran
                       </Link>
                     </>
-                  ) : booking.status === "completed" ? (
-                    <Link
-                      href={`/booking/${booking.id}/pembayaran`}
-                      className={`${actionClass} inline-flex items-center border border-[var(--border)]`}
-                    >
-                      Lihat pembayaran
-                    </Link>
                   ) : null}
                 </BookingCard>
               </li>

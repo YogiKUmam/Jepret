@@ -2,32 +2,54 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 import { BookingCard } from "@/components/bookings/booking-card";
 import { AppHeader } from "@/components/layout/app-header";
 import { BottomNavigation } from "@/components/layout/bottom-navigation";
 import { useMe } from "@/lib/auth";
-import {
-  ACTIVE_BOOKING_STATUSES,
-  useBookingAction,
-  useMyBookings,
-} from "@/lib/bookings";
+import { useBookingAction, useMyBookings } from "@/lib/bookings";
+import { useUnreadCounts } from "@/lib/conversations";
 
 const primaryActionClass =
-  "inline-flex min-h-11 items-center rounded-xl bg-[var(--primary)] px-5 text-sm font-medium text-[var(--primary-foreground)]";
+  "inline-flex min-h-11 items-center rounded-xl bg-[var(--primary)] px-5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition active:scale-[0.98]";
 const secondaryActionClass =
-  "inline-flex min-h-11 items-center rounded-xl border border-[var(--border)] px-5 text-sm font-medium disabled:opacity-60";
+  "inline-flex min-h-11 items-center rounded-xl border border-[var(--border)] px-5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-60";
+
+const CANCELLABLE_STATUSES = [
+  "requested",
+  "accepted",
+  "awaiting_payment",
+  "confirmed",
+];
+
+const WORKSPACE_STATUSES = [
+  "confirmed",
+  "in_progress",
+  "delivered",
+  "completed",
+];
 
 export default function BookingPage() {
   const router = useRouter();
   const { data: me, isPending: mePending } = useMe();
   const bookings = useMyBookings();
+  const unreadQuery = useUnreadCounts();
   const cancel = useBookingAction("cancel");
 
   useEffect(() => {
     if (!mePending && me === null) router.push("/masuk");
   }, [me, mePending, router]);
+
+  const unreadMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (unreadQuery.data) {
+      for (const item of unreadQuery.data) {
+        map.set(item.booking_id, item.count);
+      }
+    }
+    return map;
+  }, [unreadQuery.data]);
 
   return (
     <main className="min-h-screen bg-[var(--surface)] pb-24 text-[var(--surface-foreground)]">
@@ -66,7 +88,19 @@ export default function BookingPage() {
           <ul className="mt-6 list-none space-y-4">
             {bookings.data.map((booking) => (
               <li key={booking.id}>
-                <BookingCard booking={booking}>
+                <BookingCard
+                  booking={booking}
+                  unreadCount={unreadMap.get(booking.id) ?? 0}
+                >
+                  {WORKSPACE_STATUSES.includes(booking.status) ? (
+                    <Link
+                      href={`/booking/${booking.id}`}
+                      className={primaryActionClass}
+                    >
+                      Buka ruang kerja
+                    </Link>
+                  ) : null}
+
                   {booking.status === "accepted" ? (
                     <Link
                       href={`/booking/${booking.id}/pembayaran`}
@@ -75,7 +109,7 @@ export default function BookingPage() {
                       Bayar sekarang
                     </Link>
                   ) : booking.status === "awaiting_payment" ||
-                    booking.status === "confirmed" ? (
+                    WORKSPACE_STATUSES.includes(booking.status) ? (
                     <Link
                       href={`/booking/${booking.id}/pembayaran`}
                       className={secondaryActionClass}
@@ -83,7 +117,8 @@ export default function BookingPage() {
                       Lihat pembayaran
                     </Link>
                   ) : null}
-                  {ACTIVE_BOOKING_STATUSES.includes(booking.status) ? (
+
+                  {CANCELLABLE_STATUSES.includes(booking.status) ? (
                     <button
                       type="button"
                       onClick={() => cancel.mutate(booking.id)}
@@ -98,15 +133,7 @@ export default function BookingPage() {
             ))}
           </ul>
         ) : (
-          <div className="mt-6">
-            <p className="text-[var(--muted)]">Belum ada booking.</p>
-            <Link
-              href="/"
-              className="mt-3 inline-block font-medium text-[var(--primary)]"
-            >
-              Cari kreator
-            </Link>
-          </div>
+          <p className="mt-6 text-[var(--muted)]">Belum ada booking.</p>
         )}
       </section>
       <BottomNavigation />
