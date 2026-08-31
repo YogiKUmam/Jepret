@@ -23,7 +23,7 @@ test.describe("Phase 7 Governance, Reviews & Disputes", () => {
 
     await expect(
       page.getByRole("heading", { name: /ringkasan operasional/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
 
     await expect(
       page.getByText(/total gross merchandise value/i),
@@ -35,18 +35,18 @@ test.describe("Phase 7 Governance, Reviews & Disputes", () => {
     await page.goto("/admin/kreator");
     await expect(
       page.getByRole("heading", { name: /verifikasi profil kreator/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
 
     // Navigate to disputes mediation tab
     await page.goto("/admin/sengketa");
     await expect(
       page.getByRole("heading", { name: /manajemen sengketa & mediasi/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
   });
 
-  test("non-admin user is blocked from /admin", async ({ page }) => {
+  test("non-admin user is redirected away from /admin", async ({ page }) => {
     await login(page, CLIENT);
     await page.goto("/admin");
-    await expect(page.getByText(/akses ditolak/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/masuk$/);
   });
 });

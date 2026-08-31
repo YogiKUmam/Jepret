@@ -24,7 +24,7 @@ def unique_email(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}@jepret.local"
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def valid_startup_environment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
