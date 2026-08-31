@@ -196,14 +196,14 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
 
   // 7. Creator starts session
   await creatorPage.getByRole("button", { name: "Mulai sesi" }).click();
-  await expect(creatorPage.getByText("Sesi Berlangsung").first()).toBeVisible({
-    timeout: 15000,
-  });
+  await expect(
+    creatorPage.getByRole("button", { name: "Kirim hasil" }),
+  ).toBeVisible({ timeout: 15000 });
 
   // 8. Creator uploads a deliverable file & adds external link
   await creatorPage.getByRole("tab", { name: "Hasil" }).click();
   await expect(
-    creatorPage.getByRole("tabpanel", { name: "Hasil" }),
+    creatorPage.getByRole("heading", { name: "Tambah Hasil Pekerjaan" }),
   ).toBeVisible({ timeout: 15000 });
 
   // Add external link deliverable
