@@ -118,6 +118,7 @@ async def get_booking(booking_id: uuid.UUID, user: CurrentUser, db: DbSession) -
 async def get_booking_workspace(
     booking_id: uuid.UUID, user: CurrentUser, db: DbSession
 ) -> WorkspaceEnvelope:
+    _ACTIVE_STATUSES = frozenset({"confirmed", "in_progress", "delivered", "disputed"})
     access = await require_booking_participant(
         db,
         booking_id=booking_id,
@@ -158,6 +159,14 @@ async def get_booking_workspace(
     if not rows:
         raise booking_not_found()
     booking, conversation, _, payment, count = rows[0]
+
+    # Auto-create conversation on first workspace access for active bookings
+    if conversation is None and access.booking.status in _ACTIVE_STATUSES:
+        conversation = Conversation(booking_id=booking_id)
+        db.add(conversation)
+        await db.commit()
+        await db.refresh(conversation)
+
     public_booking = _booking_out(booking)
     deliverables = [_deliverable_out(row[2]) for row in rows if row[2] is not None]
     payment_summary = None
