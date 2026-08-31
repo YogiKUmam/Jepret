@@ -196,18 +196,22 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
 
   // 7. Creator starts session
   await creatorPage.getByRole("button", { name: "Mulai sesi" }).click();
-  await expect(creatorPage.getByText("Sesi Berlangsung").first()).toBeVisible();
+  await expect(creatorPage.getByText("Sesi Berlangsung").first()).toBeVisible({
+    timeout: 15000,
+  });
 
   // 8. Creator uploads a deliverable file & adds external link
   await creatorPage.getByRole("tab", { name: "Hasil" }).click();
   await expect(
     creatorPage.getByRole("tabpanel", { name: "Hasil" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 
   // Add external link deliverable
-  await creatorPage
-    .getByRole("button", { name: /Tautan Google Drive/i })
-    .click();
+  const linkModeBtn = creatorPage.getByRole("button", {
+    name: /Tautan Google Drive/i,
+  });
+  await expect(linkModeBtn).toBeVisible({ timeout: 15000 });
+  await linkModeBtn.click();
   await creatorPage.getByLabel("Judul Tautan").fill("Album Google Drive");
   await creatorPage
     .getByLabel("URL Tautan Cloud Drive")

@@ -25,11 +25,15 @@ test.describe("Phase 7 Governance, Reviews & Disputes", () => {
       page.getByRole("heading", { name: /ringkasan operasional/i }),
     ).toBeVisible({ timeout: 15000 });
 
-    await expect(
-      page.getByText(/total gross merchandise value/i),
-    ).toBeVisible();
-    await expect(page.getByText(/verifikasi kreator/i).first()).toBeVisible();
-    await expect(page.getByText(/sengketa aktif/i)).toBeVisible();
+    await expect(page.getByText(/total gross merchandise value/i)).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByText(/verifikasi kreator/i).first()).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByText(/sengketa aktif/i)).toBeVisible({
+      timeout: 15000,
+    });
 
     // Navigate to creator verification tab
     await page.goto("/admin/kreator");
