@@ -123,7 +123,7 @@ async def get_booking_workspace(
         db,
         booking_id=booking_id,
         user=user,
-        lock=True,
+        lock=False,
     )
     unread_count = (
         select(func.count(Message.id))
