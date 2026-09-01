@@ -1,3 +1,4 @@
+import os
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
@@ -11,12 +12,13 @@ from app.core.config import get_settings
 
 VALID_STARTUP_ENVIRONMENT = {
     "JEPRET_ENVIRONMENT": "test",
-    "JEPRET_DATABASE_URL": "postgresql+asyncpg://jepret:jepret@db:5432/jepret",
+    "JEPRET_DATABASE_URL": "postgresql+asyncpg://jepret:jepret@localhost:5432/jepret",
     "JEPRET_PUBLIC_ORIGIN": "http://localhost:8080",
-    "JEPRET_MINIO_ENDPOINT": "http://minio:9000",
+    "JEPRET_MINIO_ENDPOINT": "http://localhost:9000",
     "JEPRET_MINIO_PUBLIC_ENDPOINT": "http://localhost:9000",
     "JEPRET_MINIO_ACCESS_KEY": "minioadmin",
     "JEPRET_MINIO_SECRET_KEY": "minioadmin",
+    "JEPRET_MINIO_PRIVATE_BUCKET": "jepret-private",
 }
 
 
@@ -30,7 +32,8 @@ def valid_startup_environment(
     tmp_path: Path,
 ) -> Iterator[None]:
     for name, value in VALID_STARTUP_ENVIRONMENT.items():
-        monkeypatch.setenv(name, value)
+        if name not in os.environ:
+            monkeypatch.setenv(name, value)
     monkeypatch.chdir(tmp_path)
     get_settings.cache_clear()
 
