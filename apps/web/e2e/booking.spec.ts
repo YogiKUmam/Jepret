@@ -79,6 +79,14 @@ async function findAvailableEventDate(
   forcedCandidate?: string,
 ) {
   await login(page, CREATOR);
+  const meRes = await page.request.get("/api/v1/auth/me");
+  expect(meRes.ok()).toBeTruthy();
+  const meEnvelope = (await meRes.json()) as {
+    data: { creator_profile: { id: string } | null };
+  };
+  const creatorProfileId = meEnvelope.data.creator_profile?.id;
+  expect(creatorProfileId).toBeTruthy();
+
   const response = await page.request.get("/api/v1/bookings/incoming");
   expect(response.ok()).toBeTruthy();
 
@@ -96,7 +104,7 @@ async function findAvailableEventDate(
 
   if (forcedCandidate && !triedDates.has(forcedCandidate)) {
     await logout(page);
-    return forcedCandidate;
+    return { eventDate: forcedCandidate, creatorProfileId: creatorProfileId! };
   }
 
   const randomSeed = Number.parseInt(crypto.randomUUID().slice(0, 8), 16);
@@ -107,7 +115,7 @@ async function findAvailableEventDate(
     const candidate = isoDate(addUtcDays(start, candidateIndex));
     if (!activeDates.has(candidate) && !triedDates.has(candidate)) {
       await logout(page);
-      return candidate;
+      return { eventDate: candidate, creatorProfileId: creatorProfileId! };
     }
   }
 
@@ -131,16 +139,12 @@ function isBookingActionResponse(
 
 async function requestBooking(
   page: import("@playwright/test").Page,
+  creatorProfileId: string,
   eventDate: string,
   bookingNote: string,
 ) {
   await login(page, CLIENT);
-  await page.goto("/");
-  await page
-    .getByRole("searchbox", { name: "Cari kreator" })
-    .fill("Studio Cahaya");
-  await page.getByRole("button", { name: "Terapkan" }).click();
-  await page.getByRole("link", { name: /studio cahaya/i }).click();
+  await page.goto(`/kreator/${creatorProfileId}`);
   await page.getByRole("link", { name: /ajukan booking/i }).click();
 
   await page.getByLabel("Tanggal acara").fill(eventDate);
@@ -161,13 +165,13 @@ async function requestAndAcceptBooking(
   const triedDates = new Set<string>();
 
   for (let attempt = 1; attempt <= MAX_BOOKING_ATTEMPTS; attempt += 1) {
-    const eventDate = await findAvailableEventDate(
+    const { eventDate, creatorProfileId } = await findAvailableEventDate(
       page,
       triedDates,
       attempt === 1 ? forcedFirstCandidate : undefined,
     );
     const bookingNote = `${notePrefix} attempt ${attempt}`;
-    await requestBooking(page, eventDate, bookingNote);
+    await requestBooking(page, creatorProfileId, eventDate, bookingNote);
     await logout(page);
     await login(page, CREATOR);
     await page.goto("/booking/masuk");

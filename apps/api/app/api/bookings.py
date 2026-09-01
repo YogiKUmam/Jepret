@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Request, status
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.api.deps import CurrentUser, DbSession
@@ -125,6 +126,17 @@ async def get_booking_workspace(
         user=user,
         lock=False,
     )
+    if access.booking.status in _ACTIVE_STATUSES:
+        conv_exists = await db.scalar(
+            select(Conversation.id).where(Conversation.booking_id == booking_id)
+        )
+        if conv_exists is None:
+            db.add(Conversation(booking_id=booking_id))
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+
     unread_count = (
         select(func.count(Message.id))
         .where(
@@ -159,13 +171,6 @@ async def get_booking_workspace(
     if not rows:
         raise booking_not_found()
     booking, conversation, _, payment, count = rows[0]
-
-    # Auto-create conversation on first workspace access for active bookings
-    if conversation is None and access.booking.status in _ACTIVE_STATUSES:
-        conversation = Conversation(booking_id=booking_id)
-        db.add(conversation)
-        await db.commit()
-        await db.refresh(conversation)
 
     public_booking = _booking_out(booking)
     deliverables = [_deliverable_out(row[2]) for row in rows if row[2] is not None]

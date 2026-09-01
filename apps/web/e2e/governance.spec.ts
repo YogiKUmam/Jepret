@@ -28,10 +28,10 @@ test.describe("Phase 7 Governance, Reviews & Disputes", () => {
     await expect(page.getByText(/total gross merchandise value/i)).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByText(/verifikasi kreator/i).first()).toBeVisible({
+    await expect(page.getByText(/aplikasi profil kreator/i)).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByText(/sengketa aktif/i)).toBeVisible({
+    await expect(page.getByText(/sengketa booking memerlukan/i)).toBeVisible({
       timeout: 15000,
     });
 

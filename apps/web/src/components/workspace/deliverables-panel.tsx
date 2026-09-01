@@ -262,10 +262,14 @@ export function DeliverablesPanel({
           {addMode === "file" ? (
             <form onSubmit={handleCreateFile} className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-medium text-[var(--muted)]">
+                <label
+                  htmlFor="deliverable-file-title"
+                  className="block text-xs font-medium text-[var(--muted)]"
+                >
                   Judul Berkas
                 </label>
                 <input
+                  id="deliverable-file-title"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -276,10 +280,14 @@ export function DeliverablesPanel({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[var(--muted)]">
+                <label
+                  htmlFor="deliverable-file-desc"
+                  className="block text-xs font-medium text-[var(--muted)]"
+                >
                   Keterangan (Opsional)
                 </label>
                 <input
+                  id="deliverable-file-desc"
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -319,10 +327,14 @@ export function DeliverablesPanel({
           ) : (
             <form onSubmit={handleCreateLink} className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-medium text-[var(--muted)]">
+                <label
+                  htmlFor="deliverable-link-title"
+                  className="block text-xs font-medium text-[var(--muted)]"
+                >
                   Judul Tautan
                 </label>
                 <input
+                  id="deliverable-link-title"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -333,10 +345,14 @@ export function DeliverablesPanel({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[var(--muted)]">
+                <label
+                  htmlFor="deliverable-link-url"
+                  className="block text-xs font-medium text-[var(--muted)]"
+                >
                   URL Tautan Cloud Drive
                 </label>
                 <input
+                  id="deliverable-link-url"
                   type="url"
                   value={externalUrl}
                   onChange={(e) => setExternalUrl(e.target.value)}
@@ -347,10 +363,14 @@ export function DeliverablesPanel({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[var(--muted)]">
+                <label
+                  htmlFor="deliverable-link-desc"
+                  className="block text-xs font-medium text-[var(--muted)]"
+                >
                   Keterangan (Opsional)
                 </label>
                 <input
+                  id="deliverable-link-desc"
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}

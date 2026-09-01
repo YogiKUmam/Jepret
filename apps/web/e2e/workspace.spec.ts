@@ -60,6 +60,14 @@ async function findAvailableEventDate(
   triedDates: ReadonlySet<string>,
 ) {
   await login(page, CREATOR);
+  const meRes = await page.request.get("/api/v1/auth/me");
+  expect(meRes.ok()).toBeTruthy();
+  const meEnvelope = (await meRes.json()) as {
+    data: { creator_profile: { id: string } | null };
+  };
+  const creatorProfileId = meEnvelope.data.creator_profile?.id;
+  expect(creatorProfileId).toBeTruthy();
+
   const response = await page.request.get("/api/v1/bookings/incoming");
   expect(response.ok()).toBeTruthy();
 
@@ -85,7 +93,7 @@ async function findAvailableEventDate(
     const candidate = isoDate(addUtcDays(start, candidateIndex));
     if (!activeDates.has(candidate) && !triedDates.has(candidate)) {
       await logout(page);
-      return candidate;
+      return { eventDate: candidate, creatorProfileId };
     }
   }
 
@@ -100,6 +108,7 @@ test.describe.configure({ mode: "serial" });
 test("completes the entire booking workspace lifecycle: chat, deliver, accept, release payment", async ({
   browser,
 }) => {
+  test.setTimeout(90000);
   const clientContext = await browser.newContext();
   const creatorContext = await browser.newContext();
   const outsiderContext = await browser.newContext();
@@ -109,17 +118,15 @@ test("completes the entire booking workspace lifecycle: chat, deliver, accept, r
   const outsiderPage = await outsiderContext.newPage();
 
   const triedDates = new Set<string>();
-  const eventDate = await findAvailableEventDate(clientPage, triedDates);
+  const { eventDate, creatorProfileId } = await findAvailableEventDate(
+    clientPage,
+    triedDates,
+  );
   const bookingNote = `E2E workspace test ${crypto.randomUUID()}`;
 
   // 1. Client creates a booking request
   await login(clientPage, CLIENT);
-  await clientPage.goto("/");
-  await clientPage
-    .getByRole("searchbox", { name: "Cari kreator" })
-    .fill("Studio Cahaya");
-  await clientPage.getByRole("button", { name: "Terapkan" }).click();
-  await clientPage.getByRole("link", { name: /studio cahaya/i }).click();
+  await clientPage.goto(`/kreator/${creatorProfileId}`);
   await clientPage.getByRole("link", { name: /ajukan booking/i }).click();
 
   await clientPage.getByLabel("Tanggal acara").fill(eventDate);

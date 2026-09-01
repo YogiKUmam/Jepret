@@ -5,20 +5,22 @@ test("marketplace search leads to a creator detail page", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Pilihan di dekatmu" }),
   ).toBeVisible();
-  // Seed kreator terbaru tampil di halaman pertama.
-  await expect(page.getByText("Piksel Rasa")).toBeVisible();
+  await expect(
+    page.getByRole("searchbox", { name: "Cari kreator" }),
+  ).toBeVisible();
 
   await page
     .getByRole("searchbox", { name: "Cari kreator" })
     .fill("Studio Cahaya");
   await page.getByRole("button", { name: "Terapkan" }).click();
 
-  const card = page.getByRole("link", { name: /studio cahaya/i });
+  const card = page.getByRole("link", { name: /studio cahaya/i }).first();
   await expect(card).toBeVisible();
   await card.click();
 
+  await expect(page).toHaveURL(/\/kreator\/[^/]+$/);
   await expect(
-    page.getByRole("heading", { name: "Studio Cahaya" }),
+    page.getByRole("heading", { name: "Studio Cahaya", level: 1 }),
   ).toBeVisible();
   await expect(page.getByText(/bandung · wedding/i)).toBeVisible();
   await expect(

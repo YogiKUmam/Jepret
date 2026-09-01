@@ -56,12 +56,16 @@ export function ConversationPanel({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto mark read on mount and when messages change
+  // Auto mark read on mount and when unread messages from other user arrive
+  const markReadMutate = markRead.mutate;
   useEffect(() => {
-    if (messages.length > 0) {
-      markRead.mutate();
+    const hasUnread = messages.some(
+      (m) => m.sender.id !== currentUserId && m.read_at === null,
+    );
+    if (hasUnread) {
+      markReadMutate();
     }
-  }, [messages.length, markRead]);
+  }, [conversationId, messages, currentUserId, markReadMutate]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
