@@ -138,6 +138,7 @@ async def test_payment_schema_and_active_booking_states_are_enforced() -> None:
         "confirmed",
         "in_progress",
         "delivered",
+        "disputed",
     }
     assert old_accepted_date_index is None
     assert "amount_idr > 0" in payment_checks
