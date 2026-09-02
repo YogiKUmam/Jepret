@@ -2,7 +2,6 @@ import uuid
 
 from fastapi import APIRouter, Request, status
 from sqlalchemy import func, or_, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.api.deps import CurrentUser, DbSession
@@ -119,24 +118,12 @@ async def get_booking(booking_id: uuid.UUID, user: CurrentUser, db: DbSession) -
 async def get_booking_workspace(
     booking_id: uuid.UUID, user: CurrentUser, db: DbSession
 ) -> WorkspaceEnvelope:
-    _ACTIVE_STATUSES = frozenset({"confirmed", "in_progress", "delivered", "disputed"})
     access = await require_booking_participant(
         db,
         booking_id=booking_id,
         user=user,
-        lock=False,
+        lock=True,
     )
-    if access.booking.status in _ACTIVE_STATUSES:
-        conv_exists = await db.scalar(
-            select(Conversation.id).where(Conversation.booking_id == booking_id)
-        )
-        if conv_exists is None:
-            db.add(Conversation(booking_id=booking_id))
-            try:
-                await db.commit()
-            except IntegrityError:
-                await db.rollback()
-
     unread_count = (
         select(func.count(Message.id))
         .where(

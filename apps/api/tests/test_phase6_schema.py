@@ -138,7 +138,7 @@ async def test_phase6_schema_definitions_are_exact() -> None:
     assert {"conversations", "messages", "upload_intents", "deliverables"} <= tables
     assert _normalize(check_definitions["ck_booking_status_valid"]) == (
         "check (status = any (array['requested', 'accepted', 'awaiting_payment', 'confirmed', "
-        "'in_progress', 'delivered', 'rejected', 'completed', 'cancelled']))"
+        "'in_progress', 'delivered', 'rejected', 'completed', 'cancelled', 'disputed']))"
     )
     assert _normalize(check_definitions["ck_message_type_valid"]) == (
         "check (message_type = any (array['text', 'attachment', 'system']))"
@@ -204,7 +204,7 @@ async def test_phase6_schema_definitions_are_exact() -> None:
     assert active_index == (
         "create unique index uq_bookings_active_date on public.bookings using btree "
         "(creator_profile_id, event_date) where ((status) = any ((array['accepted', "
-        "'awaiting_payment', 'confirmed', 'in_progress', 'delivered'])))"
+        "'awaiting_payment', 'confirmed', 'in_progress', 'delivered', 'disputed'])))"
     )
     assert indexes["ix_messages_conversation_created_id"] == (
         "create index ix_messages_conversation_created_id on public.messages using btree "

@@ -11,7 +11,7 @@ import { ReviewForm } from "@/components/reviews/review-form";
 import { ConversationPanel } from "@/components/workspace/conversation-panel";
 import { DeliverablesPanel } from "@/components/workspace/deliverables-panel";
 import { WorkspaceHeader } from "@/components/workspace/workspace-header";
-import type { Dispute, Review } from "@/lib/api";
+import { apiFetch, type Dispute, type Review } from "@/lib/api";
 import { useMe } from "@/lib/auth";
 import { getBookingDispute } from "@/lib/disputes";
 import { getBookingReview } from "@/lib/reviews";
@@ -67,6 +67,30 @@ export default function WorkspacePage() {
   }, [bookingId]);
 
   const workspace = workspaceQuery.data;
+  const conversationInitAttempted = useRef(false);
+
+  useEffect(() => {
+    if (
+      !bookingId ||
+      !workspace ||
+      workspace.conversation !== null ||
+      conversationInitAttempted.current ||
+      !["confirmed", "in_progress", "delivered", "disputed"].includes(
+        workspace.booking.status,
+      )
+    ) {
+      return;
+    }
+
+    conversationInitAttempted.current = true;
+    apiFetch(`/bookings/${bookingId}/conversation`)
+      .then(() => {
+        workspaceQuery.refetch();
+      })
+      .catch(() => {
+        // Abaikan kegagalan; UI akan menampilkan pesan fallback
+      });
+  }, [bookingId, workspace, workspaceQuery]);
 
   const handleKeyDownTabs = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
